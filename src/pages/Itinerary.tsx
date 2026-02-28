@@ -1,0 +1,159 @@
+import { useState } from "react";
+import { Plus, Calendar, MapPin, Trash2, GripVertical } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+
+interface ItineraryItem {
+  id: string;
+  time: string;
+  activity: string;
+  location: string;
+}
+
+interface DayPlan {
+  id: string;
+  date: string;
+  items: ItineraryItem[];
+}
+
+const Itinerary = () => {
+  const [tripName, setTripName] = useState("Perjalanan Bali");
+  const [days, setDays] = useState<DayPlan[]>([
+    {
+      id: "1",
+      date: "2026-03-15",
+      items: [
+        { id: "1a", time: "08:00", activity: "Sarapan di hotel", location: "Ubud" },
+        { id: "1b", time: "10:00", activity: "Tegallalang Rice Terrace", location: "Tegallalang" },
+        { id: "1c", time: "14:00", activity: "Monkey Forest", location: "Ubud" },
+      ],
+    },
+    {
+      id: "2",
+      date: "2026-03-16",
+      items: [
+        { id: "2a", time: "07:00", activity: "Sunrise di Pantai Sanur", location: "Sanur" },
+        { id: "2b", time: "12:00", activity: "Makan siang seafood", location: "Jimbaran" },
+      ],
+    },
+  ]);
+
+  const addDay = () => {
+    const newDay: DayPlan = {
+      id: Date.now().toString(),
+      date: "",
+      items: [],
+    };
+    setDays([...days, newDay]);
+  };
+
+  const addItem = (dayId: string) => {
+    setDays(days.map((day) =>
+      day.id === dayId
+        ? { ...day, items: [...day.items, { id: Date.now().toString(), time: "", activity: "", location: "" }] }
+        : day
+    ));
+  };
+
+  const removeItem = (dayId: string, itemId: string) => {
+    setDays(days.map((day) =>
+      day.id === dayId
+        ? { ...day, items: day.items.filter((item) => item.id !== itemId) }
+        : day
+    ));
+  };
+
+  const updateItem = (dayId: string, itemId: string, field: keyof ItineraryItem, value: string) => {
+    setDays(days.map((day) =>
+      day.id === dayId
+        ? { ...day, items: day.items.map((item) => item.id === itemId ? { ...item, [field]: value } : item) }
+        : day
+    ));
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <div className="pt-24 pb-20">
+        <div className="container mx-auto px-4 max-w-3xl">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <input
+                value={tripName}
+                onChange={(e) => setTripName(e.target.value)}
+                className="text-3xl md:text-4xl font-bold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors"
+              />
+              <p className="text-muted-foreground text-sm mt-1">Susun rencana perjalananmu di sini</p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {days.map((day, dayIndex) => (
+              <Card key={day.id} className="p-6 border-border/50">
+                <div className="flex items-center gap-3 mb-4">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-foreground">Hari {dayIndex + 1}</h3>
+                  <Input
+                    type="date"
+                    value={day.date}
+                    onChange={(e) => setDays(days.map((d) => d.id === day.id ? { ...d, date: e.target.value } : d))}
+                    className="w-auto ml-auto text-sm"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  {day.items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3 group">
+                      <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                      <Input
+                        type="time"
+                        value={item.time}
+                        onChange={(e) => updateItem(day.id, item.id, "time", e.target.value)}
+                        className="w-24 text-sm"
+                      />
+                      <Input
+                        placeholder="Aktivitas"
+                        value={item.activity}
+                        onChange={(e) => updateItem(day.id, item.id, "activity", e.target.value)}
+                        className="flex-1 text-sm"
+                      />
+                      <div className="flex items-center gap-1 text-muted-foreground shrink-0">
+                        <MapPin className="h-3.5 w-3.5" />
+                        <Input
+                          placeholder="Lokasi"
+                          value={item.location}
+                          onChange={(e) => updateItem(day.id, item.id, "location", e.target.value)}
+                          className="w-28 text-sm"
+                        />
+                      </div>
+                      <button
+                        onClick={() => removeItem(day.id, item.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <Button variant="ghost" size="sm" className="mt-3" onClick={() => addItem(day.id)}>
+                  <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
+                </Button>
+              </Card>
+            ))}
+          </div>
+
+          <Button variant="outline" className="mt-6 w-full" onClick={addDay}>
+            <Plus className="h-4 w-4 mr-2" /> Tambah Hari
+          </Button>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default Itinerary;
