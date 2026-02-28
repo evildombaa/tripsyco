@@ -20,7 +20,7 @@ const Navbar = () => {
       <div className="container mx-auto flex items-center justify-between h-16 px-4">
         <Link to="/" className="flex items-center gap-2">
           <img src={tripsyLogo} alt="Tripsy.co logo" className="h-7 w-7" />
-          <span className="text-xl font-bold font-serif text-foreground">Tripsy.co</span>
+          <span className="text-xl font-bold font-serif text-foreground">Tripsy</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-6">

@@ -8,7 +8,7 @@ const Footer = () => (
         <div>
           <div className="flex items-center gap-2 mb-3">
             <img src={tripsyLogo} alt="Tripsy.co logo" className="h-6 w-6" />
-            <span className="text-lg font-bold font-serif">Tripsy.co</span>
+            <span className="text-lg font-bold font-serif">Tripsy</span>
           </div>
           <p className="text-secondary-foreground/70 text-sm max-w-xs">
             Platform perencana perjalanan personal untuk menjelajahi Indonesia dan dunia.
