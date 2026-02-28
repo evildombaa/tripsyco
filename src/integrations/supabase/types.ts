@@ -14,13 +14,164 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      expenses: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string
+          expense_date: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description: string
+          expense_date?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string
+          expense_date?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      itineraries: {
+        Row: {
+          created_at: string
+          id: string
+          trip_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          trip_name?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          trip_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      itinerary_day_items: {
+        Row: {
+          activity: string
+          created_at: string
+          day_id: string
+          id: string
+          location: string
+          sort_order: number
+          time_slot: string
+        }
+        Insert: {
+          activity?: string
+          created_at?: string
+          day_id: string
+          id?: string
+          location?: string
+          sort_order?: number
+          time_slot?: string
+        }
+        Update: {
+          activity?: string
+          created_at?: string
+          day_id?: string
+          id?: string
+          location?: string
+          sort_order?: number
+          time_slot?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_day_items_day_id_fkey"
+            columns: ["day_id"]
+            isOneToOne: false
+            referencedRelation: "itinerary_days"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itinerary_days: {
+        Row: {
+          created_at: string
+          id: string
+          itinerary_id: string
+          sort_order: number
+          trip_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          itinerary_id: string
+          sort_order?: number
+          trip_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          itinerary_id?: string
+          sort_order?: number
+          trip_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_days_itinerary_id_fkey"
+            columns: ["itinerary_id"]
+            isOneToOne: false
+            referencedRelation: "itineraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      user_owns_day: { Args: { _day_id: string }; Returns: boolean }
+      user_owns_itinerary: { Args: { _itinerary_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
