@@ -1,5 +1,5 @@
-import { MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
+import tripsyLogo from "@/assets/tripsy-logo.png";
 
 const Footer = () => (
   <footer className="bg-secondary text-secondary-foreground py-12">
@@ -7,7 +7,7 @@ const Footer = () => (
       <div className="flex flex-col md:flex-row justify-between gap-8">
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <MapPin className="h-5 w-5 text-primary" />
+            <img src={tripsyLogo} alt="Tripsy.co logo" className="h-6 w-6" />
             <span className="text-lg font-bold font-serif">Tripsy.co</span>
           </div>
           <p className="text-secondary-foreground/70 text-sm max-w-xs">
