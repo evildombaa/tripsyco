@@ -106,35 +106,74 @@ const Itinerary = () => {
 
                 <div className="space-y-3">
                   {day.items.map((item) => (
-                    <div key={item.id} className="flex items-center gap-3 group">
-                      <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                      <Input
-                        type="time"
-                        value={item.time}
-                        onChange={(e) => updateItem(day.id, item.id, "time", e.target.value)}
-                        className="w-24 text-sm"
-                      />
-                      <Input
-                        placeholder="Aktivitas"
-                        value={item.activity}
-                        onChange={(e) => updateItem(day.id, item.id, "activity", e.target.value)}
-                        className="flex-1 text-sm"
-                      />
-                      <div className="flex items-center gap-1 text-muted-foreground shrink-0">
-                        <MapPin className="h-3.5 w-3.5" />
+                    <div key={item.id} className="group rounded-lg border border-border/50 p-3 hover:bg-accent/30 transition-colors">
+                      {/* Desktop layout */}
+                      <div className="hidden sm:flex items-center gap-3">
+                        <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                         <Input
-                          placeholder="Lokasi"
-                          value={item.location}
-                          onChange={(e) => updateItem(day.id, item.id, "location", e.target.value)}
+                          type="time"
+                          value={item.time}
+                          onChange={(e) => updateItem(day.id, item.id, "time", e.target.value)}
                           className="w-28 text-sm"
                         />
+                        <Input
+                          placeholder="Aktivitas"
+                          value={item.activity}
+                          onChange={(e) => updateItem(day.id, item.id, "activity", e.target.value)}
+                          className="flex-1 text-sm"
+                        />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          <Input
+                            placeholder="Lokasi"
+                            value={item.location}
+                            onChange={(e) => updateItem(day.id, item.id, "location", e.target.value)}
+                            className="w-32 text-sm"
+                          />
+                        </div>
+                        <button
+                          onClick={() => removeItem(day.id, item.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
                       </div>
-                      <button
-                        onClick={() => removeItem(day.id, item.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+
+                      {/* Mobile layout */}
+                      <div className="flex sm:hidden flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
+                            <Input
+                              type="time"
+                              value={item.time}
+                              onChange={(e) => updateItem(day.id, item.id, "time", e.target.value)}
+                              className="w-28 text-sm"
+                            />
+                          </div>
+                          <button
+                            onClick={() => removeItem(day.id, item.id)}
+                            className="text-destructive p-1"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <Input
+                          placeholder="Aktivitas"
+                          value={item.activity}
+                          onChange={(e) => updateItem(day.id, item.id, "activity", e.target.value)}
+                          className="text-sm"
+                        />
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <Input
+                            placeholder="Lokasi"
+                            value={item.location}
+                            onChange={(e) => updateItem(day.id, item.id, "location", e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
