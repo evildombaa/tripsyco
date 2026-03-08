@@ -2,3 +2,6 @@ project_id = "nqkkmpsivoywjiampklp"
 
 [functions.generate-itinerary]
 verify_jwt = false
+
+[functions.explore-places]
+verify_jwt = false
