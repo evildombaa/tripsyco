@@ -13,7 +13,10 @@ interface DestinationCardProps {
 }
 
 const DestinationCard = ({ name, address, photoUrl, rating, userRatingsTotal, category, placeId }: DestinationCardProps) => {
-  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+  const isOsm = placeId.startsWith("osm-");
+  const mapsUrl = isOsm
+    ? `https://www.openstreetmap.org/${placeId.replace("osm-", "").replace("-", "/")}`
+    : `https://www.google.com/maps/place/?q=place_id:${placeId}`;
 
   return (
     <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
