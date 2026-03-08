@@ -1,12 +1,15 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import tripsyLogo from "@/assets/tripsy-logo.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
 
   const links = [
     { to: "/", label: "Beranda" },
@@ -14,6 +17,11 @@ const Navbar = () => {
     { to: "/itinerary", label: "Itinerary" },
     { to: "/expenses", label: "Pengeluaran" },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -38,8 +46,21 @@ const Navbar = () => {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm">Masuk</Button>
-          <Button size="sm">Daftar</Button>
+          {user ? (
+            <>
+              <span className="text-sm text-muted-foreground truncate max-w-[150px]">
+                {user.user_metadata?.full_name || user.email}
+              </span>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-1" /> Keluar
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>Masuk</Button>
+              <Button size="sm" onClick={() => navigate("/auth")}>Daftar</Button>
+            </>
+          )}
         </div>
 
         <button className="md:hidden" onClick={() => setIsOpen(!isOpen)}>
@@ -62,8 +83,16 @@ const Navbar = () => {
             </Link>
           ))}
           <div className="flex gap-2 pt-2">
-            <Button variant="ghost" size="sm" className="flex-1">Masuk</Button>
-            <Button size="sm" className="flex-1">Daftar</Button>
+            {user ? (
+              <Button variant="ghost" size="sm" className="flex-1" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-1" /> Keluar
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" className="flex-1" onClick={() => { navigate("/auth"); setIsOpen(false); }}>Masuk</Button>
+                <Button size="sm" className="flex-1" onClick={() => { navigate("/auth"); setIsOpen(false); }}>Daftar</Button>
+              </>
+            )}
           </div>
         </div>
       )}
