@@ -39,6 +39,8 @@ serve(async (req) => {
       console.warn("GOOGLE_MAPS_API_KEY not set, using fallback places");
       return serveFallback();
     }
+    // Log key prefix for debugging (first 8 chars only)
+    console.log("API key prefix:", GOOGLE_MAPS_API_KEY.substring(0, 8) + "...", "length:", GOOGLE_MAPS_API_KEY.length);
 
     const { category, preferences, searchQuery } = await req.json();
 
