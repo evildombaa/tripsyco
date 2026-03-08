@@ -18,13 +18,20 @@ interface Place {
   placeId: string;
 }
 
-const categoryQueries: Record<string, string> = {
-  Alam: "tempat wisata alam",
-  Kuliner: "restoran populer",
-  Budaya: "tempat wisata budaya",
-  Petualangan: "aktivitas outdoor petualangan",
-  Relaksasi: "spa resort relaksasi",
-};
+const fallbackPlaces: Place[] = [
+  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "ChIJm8w2en1G0i0RMBqEbF1fRfU" },
+  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", rating: 4.5, userRatingsTotal: 32100, category: "Alam", placeId: "ChIJW2v5bKxJ0i0RhKMb3387bKk" },
+  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", rating: 4.7, userRatingsTotal: 65000, category: "Budaya", placeId: "ChIJf-UWJaBYei4RSwIBbwVfJaE" },
+  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", placeId: "ChIJK2FPsINb1y0R7qqn1sXQHLw" },
+  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", rating: 4.8, userRatingsTotal: 12000, category: "Alam", placeId: "ChIJjzPgsSk70i0ROFqYRDF6dXI" },
+  { name: "Malioboro", address: "Yogyakarta, Indonesia", rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", placeId: "ChIJB9-MlZFYei4RFKaIwGLEfHo" },
+  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", placeId: "ChIJL3G7sDBG0i0RlyFWSlqLsAg" },
+  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", placeId: "ChIJi0qTQOuPqy0RZOspMhmUkEI" },
+  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 28000, category: "Alam", placeId: "ChIJaYlbcBzc1y0RmvWcNkHMmQo" },
+  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", rating: 4.7, userRatingsTotal: 15000, category: "Alam", placeId: "ChIJN2lBUi7tMTARQx0OxhHf2EQ" },
+  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", rating: 4.5, userRatingsTotal: 38000, category: "Alam", placeId: "ChIJJzkVqaxJ0i0RxGGLKAqbg3c" },
+  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", rating: 4.9, userRatingsTotal: 5200, category: "Alam", placeId: "ChIJv2fzmCa3uy0RPP_rIcN8VCk" },
+];
 
 const categories = ["Semua", "Alam", "Kuliner", "Budaya", "Petualangan", "Relaksasi"];
 
@@ -33,33 +40,29 @@ const Explore = () => {
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState("Semua");
-  const [places, setPlaces] = useState<Place[]>([]);
+  const [places, setPlaces] = useState<Place[]>(fallbackPlaces);
   const [loading, setLoading] = useState(true);
-  const [userPrefs, setUserPrefs] = useState<Record<string, string>>({});
   const { user } = useAuth();
 
-  // Load user preferences from onboarding
-  useEffect(() => {
-    if (!user) return;
-    const loadPrefs = async () => {
-      const { data } = await supabase
-        .from("onboarding_responses")
-        .select("travel_purpose, preferred_activity, budget_preference")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (data) setUserPrefs(data as Record<string, string>);
-    };
-    loadPrefs();
-  }, [user]);
-
-  // Fetch places from edge function
+  // Try fetching from Google Maps, fallback to hardcoded
   useEffect(() => {
     fetchPlaces();
-  }, [activeCategory, userPrefs]);
+  }, [activeCategory]);
 
   const fetchPlaces = async () => {
     setLoading(true);
     try {
+      // Load user prefs
+      let userPrefs: Record<string, string> = {};
+      if (user) {
+        const { data } = await supabase
+          .from("onboarding_responses")
+          .select("travel_purpose, preferred_activity, budget_preference")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (data) userPrefs = data as Record<string, string>;
+      }
+
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/explore-places`,
         {
@@ -75,23 +78,30 @@ const Explore = () => {
           }),
         }
       );
-      if (!res.ok) throw new Error("Failed to fetch places");
-      const data = await res.json();
-      setPlaces(data.places || []);
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.places && data.places.length > 0) {
+          setPlaces(data.places);
+          setLoading(false);
+          return;
+        }
+      }
     } catch (error) {
       console.error("Error fetching places:", error);
-      setPlaces([]);
-    } finally {
-      setLoading(false);
     }
+
+    // Fallback
+    let filtered = fallbackPlaces;
+    if (activeCategory !== "Semua") {
+      filtered = fallbackPlaces.filter((p) => p.category === activeCategory);
+      if (filtered.length === 0) filtered = fallbackPlaces;
+    }
+    setPlaces(filtered);
+    setLoading(false);
   };
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    fetchPlaces();
-  };
-
-  const filtered = query
+  const displayed = query
     ? places.filter(
         (p) =>
           p.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -106,7 +116,7 @@ const Explore = () => {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-6">Jelajahi Destinasi</h1>
 
-          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-8">
+          <div className="flex flex-col sm:flex-row gap-4 mb-8">
             <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-card rounded-xl border border-border">
               <Search className="h-5 w-5 text-muted-foreground" />
               <input
@@ -114,11 +124,13 @@ const Explore = () => {
                 placeholder="Cari destinasi atau kota..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") fetchPlaces(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") fetchPlaces();
+                }}
                 className="w-full bg-transparent text-foreground placeholder:text-muted-foreground outline-none text-sm"
               />
             </div>
-          </form>
+          </div>
 
           <div className="flex flex-wrap gap-2 mb-8">
             {categories.map((cat) => (
@@ -137,9 +149,9 @@ const Explore = () => {
             <div className="flex justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filtered.length > 0 ? (
+          ) : displayed.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((place) => (
+              {displayed.map((place) => (
                 <DestinationCard key={place.placeId} {...place} />
               ))}
             </div>
