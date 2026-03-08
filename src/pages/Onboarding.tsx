@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -69,6 +69,7 @@ const Onboarding = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const saveOnboardingRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const step = steps[currentStep];
   const totalSteps = steps.length;
@@ -81,6 +82,14 @@ const Onboarding = () => {
   const handleSelect = (option: string) => {
     setAnswers((prev) => ({ ...prev, [step.field]: option }));
     setIsOther((prev) => ({ ...prev, [step.field]: false }));
+    // Auto-advance to next step
+    setTimeout(() => {
+      if (currentStep < totalSteps - 1) {
+        setCurrentStep((prev) => prev + 1);
+      } else {
+        saveOnboardingRef.current();
+      }
+    }, 300);
   };
 
   const handleSelectOther = () => {
@@ -100,7 +109,7 @@ const Onboarding = () => {
     if (currentStep > 0) setCurrentStep((prev) => prev - 1);
   };
 
-  const saveOnboarding = async () => {
+  const saveOnboarding = useCallback(async () => {
     if (!user) return;
     setSaving(true);
 
@@ -135,7 +144,11 @@ const Onboarding = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, isOther, otherInputs, answers, toast, navigate]);
+
+  useEffect(() => {
+    saveOnboardingRef.current = saveOnboarding;
+  }, [saveOnboarding]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
@@ -200,6 +213,12 @@ const Onboarding = () => {
                   onChange={(e) =>
                     setOtherInputs((prev) => ({ ...prev, [step.field]: e.target.value }))
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otherValue.trim().length > 0) {
+                      e.preventDefault();
+                      handleNext();
+                    }
+                  }}
                   maxLength={200}
                   autoFocus
                 />
