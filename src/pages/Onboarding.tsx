@@ -81,6 +81,14 @@ const Onboarding = () => {
   const handleSelect = (option: string) => {
     setAnswers((prev) => ({ ...prev, [step.field]: option }));
     setIsOther((prev) => ({ ...prev, [step.field]: false }));
+    // Auto-advance to next step
+    setTimeout(() => {
+      if (currentStep < totalSteps - 1) {
+        setCurrentStep((prev) => prev + 1);
+      } else {
+        saveOnboardingRef.current();
+      }
+    }, 300);
   };
 
   const handleSelectOther = () => {
