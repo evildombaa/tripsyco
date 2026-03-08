@@ -49,7 +49,7 @@ const Auth = () => {
           password,
         });
         if (error) throw error;
-        navigate("/");
+        navigate("/onboarding");
       }
     } catch (error: any) {
       toast({
