@@ -138,6 +138,62 @@ export type Database = {
           },
         ]
       }
+      itinerary_preferences: {
+        Row: {
+          budget: string
+          created_at: string
+          destination: string
+          duration: string
+          duration_other: string | null
+          id: string
+          itinerary_id: string
+          travel_companion: string
+          travel_companion_other: string | null
+          travel_purpose: string
+          travel_purpose_other: string | null
+          travel_style: string
+          travel_style_other: string | null
+        }
+        Insert: {
+          budget?: string
+          created_at?: string
+          destination?: string
+          duration?: string
+          duration_other?: string | null
+          id?: string
+          itinerary_id: string
+          travel_companion?: string
+          travel_companion_other?: string | null
+          travel_purpose?: string
+          travel_purpose_other?: string | null
+          travel_style?: string
+          travel_style_other?: string | null
+        }
+        Update: {
+          budget?: string
+          created_at?: string
+          destination?: string
+          duration?: string
+          duration_other?: string | null
+          id?: string
+          itinerary_id?: string
+          travel_companion?: string
+          travel_companion_other?: string | null
+          travel_purpose?: string
+          travel_purpose_other?: string | null
+          travel_style?: string
+          travel_style_other?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_preferences_itinerary_id_fkey"
+            columns: ["itinerary_id"]
+            isOneToOne: true
+            referencedRelation: "itineraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       onboarding_responses: {
         Row: {
           budget_preference: string
