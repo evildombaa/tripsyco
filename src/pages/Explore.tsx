@@ -1,38 +1,103 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Search, Filter } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DestinationCard from "@/components/DestinationCard";
-import destBali from "@/assets/dest-bali.jpg";
-import destRajaAmpat from "@/assets/dest-raja-ampat.jpg";
-import destYogyakarta from "@/assets/dest-yogyakarta.jpg";
-import destLabuanBajo from "@/assets/dest-labuan-bajo.jpg";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
-const allDestinations = [
-  { name: "Ubud, Bali", location: "Bali, Indonesia", image: destBali, price: "Rp 50.000", hours: "08:00 - 18:00", category: "Alam" },
-  { name: "Raja Ampat", location: "Papua Barat, Indonesia", image: destRajaAmpat, price: "Rp 500.000", hours: "06:00 - 17:00", category: "Bahari" },
-  { name: "Candi Borobudur", location: "Yogyakarta, Indonesia", image: destYogyakarta, price: "Rp 50.000", hours: "06:00 - 17:00", category: "Budaya" },
-  { name: "Labuan Bajo", location: "NTT, Indonesia", image: destLabuanBajo, price: "Rp 150.000", hours: "07:00 - 17:00", category: "Petualangan" },
-  { name: "Nusa Penida", location: "Bali, Indonesia", image: destBali, price: "Rp 25.000", hours: "07:00 - 18:00", category: "Bahari" },
-  { name: "Prambanan", location: "Yogyakarta, Indonesia", image: destYogyakarta, price: "Rp 50.000", hours: "06:00 - 17:00", category: "Budaya" },
-];
+interface Place {
+  name: string;
+  address: string;
+  photoUrl?: string;
+  rating?: number;
+  userRatingsTotal?: number;
+  category: string;
+  placeId: string;
+}
 
-const categories = ["Semua", "Alam", "Bahari", "Budaya", "Petualangan"];
+const categoryQueries: Record<string, string> = {
+  Alam: "tempat wisata alam",
+  Kuliner: "restoran populer",
+  Budaya: "tempat wisata budaya",
+  Petualangan: "aktivitas outdoor petualangan",
+  Relaksasi: "spa resort relaksasi",
+};
+
+const categories = ["Semua", "Alam", "Kuliner", "Budaya", "Petualangan", "Relaksasi"];
 
 const Explore = () => {
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState("Semua");
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userPrefs, setUserPrefs] = useState<Record<string, string>>({});
+  const { user } = useAuth();
 
-  const filtered = allDestinations.filter((d) => {
-    const matchesQuery = d.name.toLowerCase().includes(query.toLowerCase()) || d.location.toLowerCase().includes(query.toLowerCase());
-    const matchesCategory = activeCategory === "Semua" || d.category === activeCategory;
-    return matchesQuery && matchesCategory;
-  });
+  // Load user preferences from onboarding
+  useEffect(() => {
+    if (!user) return;
+    const loadPrefs = async () => {
+      const { data } = await supabase
+        .from("onboarding_responses")
+        .select("travel_purpose, preferred_activity, budget_preference")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (data) setUserPrefs(data as Record<string, string>);
+    };
+    loadPrefs();
+  }, [user]);
+
+  // Fetch places from edge function
+  useEffect(() => {
+    fetchPlaces();
+  }, [activeCategory, userPrefs]);
+
+  const fetchPlaces = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/explore-places`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            category: activeCategory,
+            preferences: userPrefs,
+            searchQuery: query || undefined,
+          }),
+        }
+      );
+      if (!res.ok) throw new Error("Failed to fetch places");
+      const data = await res.json();
+      setPlaces(data.places || []);
+    } catch (error) {
+      console.error("Error fetching places:", error);
+      setPlaces([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchPlaces();
+  };
+
+  const filtered = query
+    ? places.filter(
+        (p) =>
+          p.name.toLowerCase().includes(query.toLowerCase()) ||
+          p.address.toLowerCase().includes(query.toLowerCase())
+      )
+    : places;
 
   return (
     <div className="min-h-screen bg-background">
@@ -41,18 +106,19 @@ const Explore = () => {
         <div className="container mx-auto px-4">
           <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-6">Jelajahi Destinasi</h1>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4 mb-8">
             <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-card rounded-xl border border-border">
               <Search className="h-5 w-5 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Cari destinasi..."
+                placeholder="Cari destinasi atau kota..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") fetchPlaces(); }}
                 className="w-full bg-transparent text-foreground placeholder:text-muted-foreground outline-none text-sm"
               />
             </div>
-          </div>
+          </form>
 
           <div className="flex flex-wrap gap-2 mb-8">
             {categories.map((cat) => (
@@ -67,10 +133,14 @@ const Explore = () => {
             ))}
           </div>
 
-          {filtered.length > 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : filtered.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filtered.map((dest) => (
-                <DestinationCard key={dest.name} {...dest} />
+              {filtered.map((place) => (
+                <DestinationCard key={place.placeId} {...place} />
               ))}
             </div>
           ) : (
