@@ -1,193 +1,300 @@
 import { useState } from "react";
-import { Plus, Calendar, MapPin, Trash2, GripVertical } from "lucide-react";
+import { Sparkles, PenLine, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import ItineraryEditor, { DayPlan } from "@/components/ItineraryEditor";
+import ItineraryQuestionnaire, { ItineraryPreferences } from "@/components/ItineraryQuestionnaire";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
-interface ItineraryItem {
-  id: string;
-  time: string;
-  activity: string;
-  location: string;
-}
-
-interface DayPlan {
-  id: string;
-  date: string;
-  items: ItineraryItem[];
-}
+type Mode = "choose" | "manual" | "ai-questionnaire" | "ai-generating" | "editor";
 
 const Itinerary = () => {
-  const [tripName, setTripName] = useState("Perjalanan Bali");
-  const [days, setDays] = useState<DayPlan[]>([
-    {
-      id: "1",
-      date: "2026-03-15",
-      items: [
-        { id: "1a", time: "08:00", activity: "Sarapan di hotel", location: "Ubud" },
-        { id: "1b", time: "10:00", activity: "Tegallalang Rice Terrace", location: "Tegallalang" },
-        { id: "1c", time: "14:00", activity: "Monkey Forest", location: "Ubud" },
-      ],
-    },
-    {
-      id: "2",
-      date: "2026-03-16",
-      items: [
-        { id: "2a", time: "07:00", activity: "Sunrise di Pantai Sanur", location: "Sanur" },
-        { id: "2b", time: "12:00", activity: "Makan siang seafood", location: "Jimbaran" },
-      ],
-    },
-  ]);
+  const [mode, setMode] = useState<Mode>("choose");
+  const [tripName, setTripName] = useState("Perjalanan Baru");
+  const [days, setDays] = useState<DayPlan[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [itineraryId, setItineraryId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { toast } = useToast();
 
-  const addDay = () => {
-    const newDay: DayPlan = {
-      id: Date.now().toString(),
-      date: "",
-      items: [],
-    };
-    setDays([...days, newDay]);
+  const handleManual = () => {
+    setDays([{ id: "1", date: "", items: [] }]);
+    setMode("manual");
   };
 
-  const addItem = (dayId: string) => {
-    setDays(days.map((day) =>
-      day.id === dayId
-        ? { ...day, items: [...day.items, { id: Date.now().toString(), time: "", activity: "", location: "" }] }
-        : day
-    ));
+  const handleAIComplete = async (prefs: ItineraryPreferences) => {
+    setMode("ai-generating");
+    try {
+      // Create itinerary in DB first
+      const { data: itin, error: itinErr } = await supabase
+        .from("itineraries")
+        .insert({ user_id: user!.id, trip_name: `Perjalanan ke ${prefs.destination}` })
+        .select()
+        .single();
+
+      if (itinErr) throw itinErr;
+      setItineraryId(itin.id);
+
+      // Save preferences
+      await supabase.from("itinerary_preferences" as any).insert({
+        itinerary_id: itin.id,
+        destination: prefs.destination,
+        travel_purpose: prefs.travel_purpose,
+        travel_purpose_other: prefs.travel_purpose_other || null,
+        travel_companion: prefs.travel_companion,
+        travel_companion_other: prefs.travel_companion_other || null,
+        travel_style: prefs.travel_style,
+        travel_style_other: prefs.travel_style_other || null,
+        budget: prefs.budget,
+        duration: prefs.duration,
+        duration_other: prefs.duration_other || null,
+      } as any);
+
+      // Call edge function
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-itinerary`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            preferences: {
+              destination: prefs.destination,
+              travel_purpose: prefs.travel_purpose_other || prefs.travel_purpose,
+              travel_companion: prefs.travel_companion_other || prefs.travel_companion,
+              travel_style: prefs.travel_style_other || prefs.travel_style,
+              budget: prefs.budget,
+              duration: prefs.duration_other || prefs.duration,
+            },
+          }),
+        }
+      );
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Gagal generate itinerary");
+      }
+
+      const { itinerary } = await res.json();
+      setTripName(itinerary.trip_name || `Perjalanan ke ${prefs.destination}`);
+
+      // Save days & items to DB, and set local state
+      const generatedDays: DayPlan[] = [];
+
+      for (let i = 0; i < itinerary.days.length; i++) {
+        const dayData = itinerary.days[i];
+        const { data: dayRow, error: dayErr } = await supabase
+          .from("itinerary_days")
+          .insert({ itinerary_id: itin.id, sort_order: i, trip_date: null })
+          .select()
+          .single();
+
+        if (dayErr) throw dayErr;
+
+        const items = dayData.items || [];
+        const localItems = [];
+
+        for (let j = 0; j < items.length; j++) {
+          const item = items[j];
+          const { data: itemRow, error: itemErr } = await supabase
+            .from("itinerary_day_items")
+            .insert({
+              day_id: dayRow.id,
+              time_slot: item.time || "",
+              activity: item.activity || "",
+              location: item.location || "",
+              sort_order: j,
+            })
+            .select()
+            .single();
+
+          if (itemErr) throw itemErr;
+          localItems.push({
+            id: itemRow.id,
+            time: itemRow.time_slot,
+            activity: itemRow.activity,
+            location: itemRow.location,
+          });
+        }
+
+        generatedDays.push({
+          id: dayRow.id,
+          date: dayRow.trip_date || "",
+          items: localItems,
+        });
+      }
+
+      // Update trip name
+      await supabase
+        .from("itineraries")
+        .update({ trip_name: itinerary.trip_name || `Perjalanan ke ${prefs.destination}` })
+        .eq("id", itin.id);
+
+      setDays(generatedDays);
+      setMode("editor");
+      toast({ title: "Itinerary berhasil dibuat! 🎉", description: "Kamu bisa mengedit sesuai keinginan." });
+    } catch (error: any) {
+      console.error(error);
+      toast({ title: "Gagal membuat itinerary", description: error.message, variant: "destructive" });
+      setMode("choose");
+    }
   };
 
-  const removeItem = (dayId: string, itemId: string) => {
-    setDays(days.map((day) =>
-      day.id === dayId
-        ? { ...day, items: day.items.filter((item) => item.id !== itemId) }
-        : day
-    ));
-  };
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
 
-  const updateItem = (dayId: string, itemId: string, field: keyof ItineraryItem, value: string) => {
-    setDays(days.map((day) =>
-      day.id === dayId
-        ? { ...day, items: day.items.map((item) => item.id === itemId ? { ...item, [field]: value } : item) }
-        : day
-    ));
+    try {
+      if (itineraryId) {
+        // Update existing
+        await supabase.from("itineraries").update({ trip_name: tripName }).eq("id", itineraryId);
+
+        // Delete existing days/items and re-insert
+        await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
+
+        for (let i = 0; i < days.length; i++) {
+          const day = days[i];
+          const { data: dayRow, error: dayErr } = await supabase
+            .from("itinerary_days")
+            .insert({ itinerary_id: itineraryId, sort_order: i, trip_date: day.date || null })
+            .select()
+            .single();
+          if (dayErr) throw dayErr;
+
+          for (let j = 0; j < day.items.length; j++) {
+            const item = day.items[j];
+            await supabase.from("itinerary_day_items").insert({
+              day_id: dayRow.id,
+              time_slot: item.time,
+              activity: item.activity,
+              location: item.location,
+              sort_order: j,
+            });
+          }
+        }
+      } else {
+        // Create new
+        const { data: itin, error: itinErr } = await supabase
+          .from("itineraries")
+          .insert({ user_id: user.id, trip_name: tripName })
+          .select()
+          .single();
+        if (itinErr) throw itinErr;
+        setItineraryId(itin.id);
+
+        for (let i = 0; i < days.length; i++) {
+          const day = days[i];
+          const { data: dayRow, error: dayErr } = await supabase
+            .from("itinerary_days")
+            .insert({ itinerary_id: itin.id, sort_order: i, trip_date: day.date || null })
+            .select()
+            .single();
+          if (dayErr) throw dayErr;
+
+          for (let j = 0; j < day.items.length; j++) {
+            const item = day.items[j];
+            await supabase.from("itinerary_day_items").insert({
+              day_id: dayRow.id,
+              time_slot: item.time,
+              activity: item.activity,
+              location: item.location,
+              sort_order: j,
+            });
+          }
+        }
+      }
+
+      toast({ title: "Tersimpan! ✅" });
+    } catch (error: any) {
+      toast({ title: "Gagal menyimpan", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="pt-24 pb-20">
-        <div className="container mx-auto px-4 max-w-3xl">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <input
-                value={tripName}
-                onChange={(e) => setTripName(e.target.value)}
-                className="text-3xl md:text-4xl font-bold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors"
-              />
-              <p className="text-muted-foreground text-sm mt-1">Susun rencana perjalananmu di sini</p>
-            </div>
-          </div>
+        <div className="container mx-auto px-4">
+          {mode === "choose" && (
+            <div className="max-w-2xl mx-auto text-center">
+              <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-3">
+                Buat Itinerary Baru
+              </h1>
+              <p className="text-muted-foreground mb-10">
+                Pilih cara membuat rencana perjalananmu
+              </p>
 
-          <div className="space-y-6">
-            {days.map((day, dayIndex) => (
-              <Card key={day.id} className="p-6 border-border/50">
-                <div className="flex items-center gap-3 mb-4">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <h3 className="font-semibold text-foreground">Hari {dayIndex + 1}</h3>
-                  <Input
-                    type="date"
-                    value={day.date}
-                    onChange={(e) => setDays(days.map((d) => d.id === day.id ? { ...d, date: e.target.value } : d))}
-                    className="w-auto ml-auto text-sm"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  {day.items.map((item) => (
-                    <div key={item.id} className="group rounded-lg border border-border/50 p-3 hover:bg-accent/30 transition-colors">
-                      {/* Desktop layout */}
-                      <div className="hidden sm:flex items-center gap-3">
-                        <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
-                        <Input
-                          type="time"
-                          value={item.time}
-                          onChange={(e) => updateItem(day.id, item.id, "time", e.target.value)}
-                          className="w-28 text-sm"
-                        />
-                        <Input
-                          placeholder="Aktivitas"
-                          value={item.activity}
-                          onChange={(e) => updateItem(day.id, item.id, "activity", e.target.value)}
-                          className="flex-1 text-sm"
-                        />
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                          <Input
-                            placeholder="Lokasi"
-                            value={item.location}
-                            onChange={(e) => updateItem(day.id, item.id, "location", e.target.value)}
-                            className="w-32 text-sm"
-                          />
-                        </div>
-                        <button
-                          onClick={() => removeItem(day.id, item.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive shrink-0"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      {/* Mobile layout */}
-                      <div className="flex sm:hidden flex-col gap-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <GripVertical className="h-4 w-4 text-muted-foreground/50" />
-                            <Input
-                              type="time"
-                              value={item.time}
-                              onChange={(e) => updateItem(day.id, item.id, "time", e.target.value)}
-                              className="w-28 text-sm"
-                            />
-                          </div>
-                          <button
-                            onClick={() => removeItem(day.id, item.id)}
-                            className="text-destructive p-1"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                        <Input
-                          placeholder="Aktivitas"
-                          value={item.activity}
-                          onChange={(e) => updateItem(day.id, item.id, "activity", e.target.value)}
-                          className="text-sm"
-                        />
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <Input
-                            placeholder="Lokasi"
-                            value={item.location}
-                            onChange={(e) => updateItem(day.id, item.id, "location", e.target.value)}
-                            className="text-sm"
-                          />
-                        </div>
-                      </div>
+              <div className="grid sm:grid-cols-2 gap-6">
+                <Card
+                  className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                  onClick={handleManual}
+                >
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                      <PenLine className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                  ))}
-                </div>
+                    <h3 className="text-lg font-semibold text-foreground">Buat Manual</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Susun sendiri aktivitas, waktu, dan lokasi perjalananmu
+                    </p>
+                  </div>
+                </Card>
 
-                <Button variant="ghost" size="sm" className="mt-3" onClick={() => addItem(day.id)}>
-                  <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
-                </Button>
-              </Card>
-            ))}
-          </div>
+                <Card
+                  className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                  onClick={() => setMode("ai-questionnaire")}
+                >
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                      <Sparkles className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-foreground">Buat Otomatis</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Jawab beberapa pertanyaan, AI akan buatkan itinerary untukmu
+                    </p>
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
 
-          <Button variant="outline" className="mt-6 w-full" onClick={addDay}>
-            <Plus className="h-4 w-4 mr-2" /> Tambah Hari
-          </Button>
+          {mode === "ai-questionnaire" && (
+            <ItineraryQuestionnaire
+              onComplete={handleAIComplete}
+              onBack={() => setMode("choose")}
+            />
+          )}
+
+          {mode === "ai-generating" && (
+            <div className="max-w-lg mx-auto text-center py-20">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-6" />
+              <h2 className="text-xl font-bold font-serif text-foreground mb-2">
+                Sedang membuat itinerary...
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                AI sedang merangkai rencana perjalanan terbaik untukmu. Ini mungkin memakan waktu beberapa detik.
+              </p>
+            </div>
+          )}
+
+          {(mode === "manual" || mode === "editor") && (
+            <ItineraryEditor
+              tripName={tripName}
+              setTripName={setTripName}
+              days={days}
+              setDays={setDays}
+              onSave={handleSave}
+              saving={saving}
+            />
+          )}
         </div>
       </div>
       <Footer />
