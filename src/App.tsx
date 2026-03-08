@@ -10,6 +10,7 @@ import Explore from "./pages/Explore";
 import Itinerary from "./pages/Itinerary";
 import Expenses from "./pages/Expenses";
 import Auth from "./pages/Auth";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
