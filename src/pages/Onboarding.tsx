@@ -109,7 +109,7 @@ const Onboarding = () => {
     if (currentStep > 0) setCurrentStep((prev) => prev - 1);
   };
 
-  const saveOnboarding = async () => {
+  const saveOnboarding = useCallback(async () => {
     if (!user) return;
     setSaving(true);
 
@@ -144,7 +144,11 @@ const Onboarding = () => {
     } finally {
       setSaving(false);
     }
-  };
+  }, [user, isOther, otherInputs, answers, toast, navigate]);
+
+  useEffect(() => {
+    saveOnboardingRef.current = saveOnboarding;
+  }, [saveOnboarding]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
