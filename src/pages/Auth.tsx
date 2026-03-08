@@ -39,10 +39,10 @@ const Auth = () => {
           },
         });
         if (error) throw error;
-        toast({
-          title: "Akun berhasil dibuat!",
-          description: "Cek email kamu untuk verifikasi akun.",
-        });
+        toast({ title: "Akun berhasil dibuat!", description: "Silakan masuk dengan akun Anda." });
+        setIsSignUp(false);
+        setName("");
+        setPassword("");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,
