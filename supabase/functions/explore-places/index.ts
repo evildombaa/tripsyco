@@ -7,18 +7,18 @@ const corsHeaders = {
 };
 
 const fallbackPlaces = [
-  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", photoUrl: null, rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "tanah-lot" },
-  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", photoUrl: null, rating: 4.5, userRatingsTotal: 32100, category: "Alam", placeId: "tegallalang" },
-  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 65000, category: "Budaya", placeId: "borobudur" },
-  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", placeId: "kawah-ijen" },
-  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", photoUrl: null, rating: 4.8, userRatingsTotal: 12000, category: "Alam", placeId: "nusa-penida" },
-  { name: "Malioboro", address: "Yogyakarta, Indonesia", photoUrl: null, rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", placeId: "malioboro" },
-  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", photoUrl: null, rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", placeId: "pantai-kuta" },
-  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", photoUrl: null, rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", placeId: "komodo" },
-  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 28000, category: "Alam", placeId: "bromo" },
-  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 15000, category: "Alam", placeId: "danau-toba" },
-  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", photoUrl: null, rating: 4.5, userRatingsTotal: 38000, category: "Alam", placeId: "monkey-forest" },
-  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", photoUrl: null, rating: 4.9, userRatingsTotal: 5200, category: "Alam", placeId: "raja-ampat" },
+  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "tanah-lot" },
+  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", rating: 4.5, userRatingsTotal: 32100, category: "Alam", placeId: "tegallalang" },
+  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", rating: 4.7, userRatingsTotal: 65000, category: "Budaya", placeId: "borobudur" },
+  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", placeId: "kawah-ijen" },
+  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", rating: 4.8, userRatingsTotal: 12000, category: "Alam", placeId: "nusa-penida" },
+  { name: "Malioboro", address: "Yogyakarta, Indonesia", rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", placeId: "malioboro" },
+  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", placeId: "pantai-kuta" },
+  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", placeId: "komodo" },
+  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 28000, category: "Alam", placeId: "bromo" },
+  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", rating: 4.7, userRatingsTotal: 15000, category: "Alam", placeId: "danau-toba" },
+  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", rating: 4.5, userRatingsTotal: 38000, category: "Alam", placeId: "monkey-forest" },
+  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", rating: 4.9, userRatingsTotal: 5200, category: "Alam", placeId: "raja-ampat" },
 ];
 
 function mapOsmCategory(type: string): string {
@@ -30,18 +30,29 @@ function mapOsmCategory(type: string): string {
   return "Alam";
 }
 
-async function fetchWikimediaThumb(lat: number, lon: number): Promise<string | null> {
+async function fetchWikipediaImage(placeName: string): Promise<string | null> {
   try {
-    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=geosearch&ggscoord=${lat}|${lon}&ggsradius=1000&ggslimit=1&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`;
-    const res = await fetch(url, { headers: { "User-Agent": "Tripsy/1.0" } });
+    // Search Wikipedia for the place and get page thumbnail
+    const searchUrl = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(placeName)}&prop=pageimages&pithumbsize=800&format=json&redirects=1`;
+    const res = await fetch(searchUrl, { headers: { "User-Agent": "Tripsy/1.0 (travel planner app)" } });
     const data = await res.json();
     const pages = data?.query?.pages;
     if (pages) {
       const page = Object.values(pages)[0] as any;
-      return page?.imageinfo?.[0]?.thumburl || null;
+      if (page?.thumbnail?.source) return page.thumbnail.source;
+    }
+
+    // Try Indonesian Wikipedia as fallback
+    const idUrl = `https://id.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(placeName)}&prop=pageimages&pithumbsize=800&format=json&redirects=1`;
+    const idRes = await fetch(idUrl, { headers: { "User-Agent": "Tripsy/1.0 (travel planner app)" } });
+    const idData = await idRes.json();
+    const idPages = idData?.query?.pages;
+    if (idPages) {
+      const idPage = Object.values(idPages)[0] as any;
+      if (idPage?.thumbnail?.source) return idPage.thumbnail.source;
     }
   } catch (e) {
-    console.warn("Wikimedia thumb fetch failed:", e);
+    console.warn("Wikipedia image fetch failed for", placeName, e);
   }
   return null;
 }
@@ -78,17 +89,19 @@ serve(async (req) => {
 
     console.log("Nominatim results:", results.length);
 
-    if (!results || results.length === 0) {
-      console.warn("No results from Nominatim, using fallback");
-      return serveFallback(category);
+    // If Nominatim returns too few results, use fallback with Wikipedia images
+    if (!results || results.length < 3) {
+      console.log("Too few Nominatim results, using enriched fallback");
+      return await serveEnrichedFallback(category);
     }
 
-    // Fetch photos in parallel from Wikimedia Commons
+    // Fetch Wikipedia images in parallel
     const placesWithPhotos = await Promise.all(
       results.map(async (r: any) => {
-        const photoUrl = await fetchWikimediaThumb(parseFloat(r.lat), parseFloat(r.lon));
+        const name = r.name || r.display_name?.split(",")[0] || "Unknown";
+        const photoUrl = await fetchWikipediaImage(name);
         const osmType = r.extratags?.tourism || r.extratags?.amenity || r.extratags?.natural || r.type || "";
-        
+
         const addressParts = [];
         const addr = r.address || {};
         if (addr.city || addr.town || addr.village) addressParts.push(addr.city || addr.town || addr.village);
@@ -97,7 +110,7 @@ serve(async (req) => {
         const address = addressParts.length > 0 ? addressParts.join(", ") : (r.display_name || "");
 
         return {
-          name: r.name || r.display_name?.split(",")[0] || "Unknown",
+          name,
           address,
           photoUrl,
           rating: null,
@@ -120,17 +133,26 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("explore-places error:", e);
-    return serveFallback();
+    return await serveEnrichedFallback();
   }
 });
 
-function serveFallback(category?: string) {
+async function serveEnrichedFallback(category?: string) {
   let filtered = fallbackPlaces;
   if (category && category !== "Semua") {
     filtered = fallbackPlaces.filter((p) => p.category === category);
     if (filtered.length === 0) filtered = fallbackPlaces;
   }
-  return new Response(JSON.stringify({ places: filtered }), {
+
+  // Enrich fallback with Wikipedia images
+  const enriched = await Promise.all(
+    filtered.map(async (p) => {
+      const photoUrl = await fetchWikipediaImage(p.name);
+      return { ...p, photoUrl };
+    })
+  );
+
+  return new Response(JSON.stringify({ places: enriched }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
