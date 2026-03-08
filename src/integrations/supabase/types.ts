@@ -138,6 +138,44 @@ export type Database = {
           },
         ]
       }
+      itinerary_feedback: {
+        Row: {
+          created_at: string
+          feedback_text: string
+          id: string
+          itinerary_id: string
+          rating: number
+          suggestions: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          feedback_text?: string
+          id?: string
+          itinerary_id: string
+          rating: number
+          suggestions?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          feedback_text?: string
+          id?: string
+          itinerary_id?: string
+          rating?: number
+          suggestions?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itinerary_feedback_itinerary_id_fkey"
+            columns: ["itinerary_id"]
+            isOneToOne: false
+            referencedRelation: "itineraries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itinerary_preferences: {
         Row: {
           budget: string

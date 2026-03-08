@@ -16,7 +16,7 @@ serve(async (req) => {
     const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
     if (!GOOGLE_MAPS_API_KEY) throw new Error("GOOGLE_MAPS_API_KEY not configured");
 
-    const { preferences } = await req.json();
+    const { preferences, feedback } = await req.json();
     const { destination, travel_purpose, travel_companion, travel_style, budget, duration } = preferences;
 
     // Determine number of days
@@ -39,10 +39,9 @@ serve(async (req) => {
       name: p.name,
       address: p.formatted_address,
       rating: p.rating,
-      types: p.types,
     }));
 
-    // Step 2: Also search for restaurants
+    // Step 2: Search for restaurants
     const foodUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=restoran+populer+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
     const foodRes = await fetch(foodUrl);
     const foodData = await foodRes.json();
@@ -52,6 +51,15 @@ serve(async (req) => {
       address: p.formatted_address,
       rating: p.rating,
     }));
+
+    // Build feedback context for personalization
+    let feedbackContext = "";
+    if (feedback && Array.isArray(feedback) && feedback.length > 0) {
+      feedbackContext = `\n\nPENTING - Berikut feedback dari perjalanan sebelumnya user ini. Gunakan ini untuk mempersonalisasi itinerary:
+${feedback.map((f: any, i: number) => `${i + 1}. Rating: ${f.rating}/5 | Pendapat: "${f.feedback}" | Saran: "${f.suggestions}"`).join("\n")}
+
+Sesuaikan itinerary berdasarkan feedback di atas. Misalnya jika user bilang "terlalu padat", buat jadwal lebih santai. Jika user minta "lebih banyak kuliner", tambahkan tempat makan.`;
+    }
 
     // Step 3: Generate itinerary with OpenAI
     const prompt = `Kamu adalah travel planner profesional untuk wisata di Indonesia.
@@ -66,6 +74,7 @@ ${topPlaces.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating})`).j
 
 Berikut restoran populer di ${destination}:
 ${topFood.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating})`).join("\n")}
+${feedbackContext}
 
 PENTING: Gunakan tempat-tempat dari daftar di atas sebanyak mungkin. Tambahkan juga tempat lain yang kamu tahu jika relevan.
 
@@ -104,12 +113,10 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
     const openaiData = await openaiRes.json();
     const content = openaiData.choices?.[0]?.message?.content || "";
 
-    // Parse JSON from response
     let itinerary;
     try {
       itinerary = JSON.parse(content.trim());
     } catch {
-      // Try to extract JSON from possible markdown wrapping
       const match = content.match(/\{[\s\S]*\}/);
       if (match) {
         itinerary = JSON.parse(match[0]);
