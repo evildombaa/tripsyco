@@ -7,90 +7,115 @@ const corsHeaders = {
 };
 
 const fallbackPlaces = [
-  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", photoUrl: null, rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "ChIJm8w2en1G0i0RMBqEbF1fRfU" },
-  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", photoUrl: null, rating: 4.5, userRatingsTotal: 32100, category: "Alam", placeId: "ChIJW2v5bKxJ0i0RhKMb3387bKk" },
-  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 65000, category: "Budaya", placeId: "ChIJf-UWJaBYei4RSwIBbwVfJaE" },
-  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", placeId: "ChIJK2FPsINb1y0R7qqn1sXQHLw" },
-  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", photoUrl: null, rating: 4.8, userRatingsTotal: 12000, category: "Alam", placeId: "ChIJjzPgsSk70i0ROFqYRDF6dXI" },
-  { name: "Malioboro", address: "Yogyakarta, Indonesia", photoUrl: null, rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", placeId: "ChIJB9-MlZFYei4RFKaIwGLEfHo" },
-  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", photoUrl: null, rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", placeId: "ChIJL3G7sDBG0i0RlyFWSlqLsAg" },
-  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", photoUrl: null, rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", placeId: "ChIJi0qTQOuPqy0RZOspMhmUkEI" },
-  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 28000, category: "Alam", placeId: "ChIJaYlbcBzc1y0RmvWcNkHMmQo" },
-  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 15000, category: "Alam", placeId: "ChIJN2lBUi7tMTARQx0OxhHf2EQ" },
-  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", photoUrl: null, rating: 4.5, userRatingsTotal: 38000, category: "Alam", placeId: "ChIJJzkVqaxJ0i0RxGGLKAqbg3c" },
-  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", photoUrl: null, rating: 4.9, userRatingsTotal: 5200, category: "Alam", placeId: "ChIJv2fzmCa3uy0RPP_rIcN8VCk" },
+  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", photoUrl: null, rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "tanah-lot" },
+  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", photoUrl: null, rating: 4.5, userRatingsTotal: 32100, category: "Alam", placeId: "tegallalang" },
+  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 65000, category: "Budaya", placeId: "borobudur" },
+  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", placeId: "kawah-ijen" },
+  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", photoUrl: null, rating: 4.8, userRatingsTotal: 12000, category: "Alam", placeId: "nusa-penida" },
+  { name: "Malioboro", address: "Yogyakarta, Indonesia", photoUrl: null, rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", placeId: "malioboro" },
+  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", photoUrl: null, rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", placeId: "pantai-kuta" },
+  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", photoUrl: null, rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", placeId: "komodo" },
+  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 28000, category: "Alam", placeId: "bromo" },
+  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", photoUrl: null, rating: 4.7, userRatingsTotal: 15000, category: "Alam", placeId: "danau-toba" },
+  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", photoUrl: null, rating: 4.5, userRatingsTotal: 38000, category: "Alam", placeId: "monkey-forest" },
+  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", photoUrl: null, rating: 4.9, userRatingsTotal: 5200, category: "Alam", placeId: "raja-ampat" },
 ];
 
-function mapCategory(types: string[]): string {
-  if (types.some((t) => ["restaurant", "food", "cafe", "bakery"].includes(t))) return "Kuliner";
-  if (types.some((t) => ["spa", "lodging"].includes(t))) return "Relaksasi";
-  if (types.some((t) => ["museum", "church", "hindu_temple", "place_of_worship"].includes(t))) return "Budaya";
-  if (types.some((t) => ["park", "natural_feature", "campground"].includes(t))) return "Alam";
-  if (types.some((t) => ["amusement_park", "stadium", "zoo", "aquarium"].includes(t))) return "Petualangan";
+function mapOsmCategory(type: string): string {
+  if (["restaurant", "cafe", "fast_food", "food_court", "bar"].includes(type)) return "Kuliner";
+  if (["hotel", "spa", "resort"].includes(type)) return "Relaksasi";
+  if (["museum", "temple", "place_of_worship", "monument", "archaeological_site", "castle", "memorial"].includes(type)) return "Budaya";
+  if (["national_park", "nature_reserve", "park", "garden", "beach", "volcano", "waterfall", "viewpoint", "water"].includes(type)) return "Alam";
+  if (["theme_park", "zoo", "aquarium", "stadium", "climbing"].includes(type)) return "Petualangan";
   return "Alam";
+}
+
+async function fetchWikimediaThumb(lat: number, lon: number): Promise<string | null> {
+  try {
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=geosearch&ggscoord=${lat}|${lon}&ggsradius=1000&ggslimit=1&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json`;
+    const res = await fetch(url, { headers: { "User-Agent": "Tripsy/1.0" } });
+    const data = await res.json();
+    const pages = data?.query?.pages;
+    if (pages) {
+      const page = Object.values(pages)[0] as any;
+      return page?.imageinfo?.[0]?.thumburl || null;
+    }
+  } catch (e) {
+    console.warn("Wikimedia thumb fetch failed:", e);
+  }
+  return null;
 }
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!GOOGLE_MAPS_API_KEY) {
-      console.warn("GOOGLE_MAPS_API_KEY not set, using fallback places");
-      return serveFallback();
-    }
-    // Log key prefix for debugging (first 8 chars only)
-    console.log("API key prefix:", GOOGLE_MAPS_API_KEY.substring(0, 8) + "...", "length:", GOOGLE_MAPS_API_KEY.length);
-
-    const { category, preferences, searchQuery } = await req.json();
+    const { category, searchQuery } = await req.json();
 
     let q = "";
     if (searchQuery) {
-      q = `wisata ${searchQuery} Indonesia`;
+      q = `${searchQuery} Indonesia tourism`;
     } else if (category && category !== "Semua") {
       const catMap: Record<string, string> = {
-        Alam: "tempat wisata alam pemandangan Indonesia",
-        Kuliner: "restoran kuliner populer Indonesia",
-        Budaya: "tempat wisata budaya sejarah Indonesia",
-        Petualangan: "aktivitas outdoor petualangan wisata Indonesia",
-        Relaksasi: "spa resort relaksasi wellness Indonesia",
+        Alam: "nature park beach volcano Indonesia",
+        Kuliner: "restaurant food culinary Indonesia",
+        Budaya: "temple museum heritage culture Indonesia",
+        Petualangan: "adventure outdoor activity Indonesia",
+        Relaksasi: "spa resort wellness Indonesia",
       };
-      q = catMap[category] || "tempat wisata populer Indonesia";
+      q = catMap[category] || "tourism Indonesia";
     } else {
-      q = "tempat wisata populer Indonesia";
+      q = "tourism attraction Indonesia";
     }
 
-    console.log("Searching Google Maps for:", q);
+    console.log("Searching Nominatim for:", q);
 
-    const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
-    const res = await fetch(url);
-    const data = await res.json();
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=12&countrycodes=id&addressdetails=1&extratags=1`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Tripsy/1.0 (travel planner app)" },
+    });
+    const results = await res.json();
 
-    console.log("Google Maps status:", data.status, "results:", (data.results || []).length);
+    console.log("Nominatim results:", results.length);
 
-    if (!data.results || data.results.length === 0) {
-      console.warn("No results from Google Maps, using fallback. Status:", data.status, "error:", data.error_message);
+    if (!results || results.length === 0) {
+      console.warn("No results from Nominatim, using fallback");
       return serveFallback(category);
     }
 
-    const places = data.results.slice(0, 12).map((p: any) => {
-      const photoRef = p.photos?.[0]?.photo_reference;
-      const photoUrl = photoRef
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${photoRef}&key=${GOOGLE_MAPS_API_KEY}`
-        : null;
+    // Fetch photos in parallel from Wikimedia Commons
+    const placesWithPhotos = await Promise.all(
+      results.map(async (r: any) => {
+        const photoUrl = await fetchWikimediaThumb(parseFloat(r.lat), parseFloat(r.lon));
+        const osmType = r.extratags?.tourism || r.extratags?.amenity || r.extratags?.natural || r.type || "";
+        
+        const addressParts = [];
+        const addr = r.address || {};
+        if (addr.city || addr.town || addr.village) addressParts.push(addr.city || addr.town || addr.village);
+        if (addr.state) addressParts.push(addr.state);
+        if (addr.country) addressParts.push(addr.country);
+        const address = addressParts.length > 0 ? addressParts.join(", ") : (r.display_name || "");
 
-      return {
-        name: p.name,
-        address: p.formatted_address || p.vicinity || "",
-        photoUrl,
-        rating: p.rating || null,
-        userRatingsTotal: p.user_ratings_total || null,
-        category: mapCategory(p.types || []),
-        placeId: p.place_id,
-      };
-    });
+        return {
+          name: r.name || r.display_name?.split(",")[0] || "Unknown",
+          address,
+          photoUrl,
+          rating: null,
+          userRatingsTotal: null,
+          category: mapOsmCategory(osmType),
+          placeId: `osm-${r.osm_type}-${r.osm_id}`,
+        };
+      })
+    );
 
-    return new Response(JSON.stringify({ places }), {
+    // Filter by category if needed
+    let filtered = placesWithPhotos;
+    if (category && category !== "Semua") {
+      const catFiltered = placesWithPhotos.filter((p: any) => p.category === category);
+      if (catFiltered.length > 0) filtered = catFiltered;
+    }
+
+    return new Response(JSON.stringify({ places: filtered }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
