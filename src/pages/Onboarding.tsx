@@ -69,6 +69,7 @@ const Onboarding = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const saveOnboardingRef = useRef<() => Promise<void>>(() => Promise.resolve());
 
   const step = steps[currentStep];
   const totalSteps = steps.length;
