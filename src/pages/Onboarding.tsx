@@ -208,6 +208,12 @@ const Onboarding = () => {
                   onChange={(e) =>
                     setOtherInputs((prev) => ({ ...prev, [step.field]: e.target.value }))
                   }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && otherValue.trim().length > 0) {
+                      e.preventDefault();
+                      handleNext();
+                    }
+                  }}
                   maxLength={200}
                   autoFocus
                 />
