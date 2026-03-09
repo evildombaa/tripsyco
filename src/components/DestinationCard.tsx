@@ -23,10 +23,13 @@ const DestinationCard = ({
   lat,
   lng,
 }: DestinationCardProps) => {
-  // Pin lokasi tepat menggunakan koordinat, format q=lat,lng paling akurat
-  const mapsUrl = lat && lng
-    ? `https://maps.google.com/?q=${lat},${lng}&ll=${lat},${lng}&z=15`
-    : `https://maps.google.com/?q=${encodeURIComponent(name + ", " + address)}`;
+  const latNum = lat == null ? null : Number(lat);
+  const lngNum = lng == null ? null : Number(lng);
+
+  // Gunakan format /maps/place/.../@lat,lng,zoom agar langsung mengarah ke tempat (bukan lokasi user)
+  const mapsUrl = Number.isFinite(latNum) && Number.isFinite(lngNum)
+    ? `https://www.google.com/maps/place/${encodeURIComponent(name)}/@${latNum},${lngNum},17z`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name}, ${address}`)}`;
 
   return (
     <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
