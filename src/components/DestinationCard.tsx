@@ -9,7 +9,8 @@ interface DestinationCardProps {
   rating?: number;
   userRatingsTotal?: number;
   category: string;
-  placeId: string;
+  lat?: number;
+  lng?: number;
 }
 
 const DestinationCard = ({
@@ -19,34 +20,27 @@ const DestinationCard = ({
   rating,
   userRatingsTotal,
   category,
-  placeId,
+  lat,
+  lng,
 }: DestinationCardProps) => {
-  const mapsQuery = `${name} ${address}`.trim();
-  const mapsUrl = placeId
-    ? `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(placeId)}&query=${encodeURIComponent(
-        mapsQuery
-      )}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
+  // Use coordinates for accurate Google Maps link, fallback to name search
+  const mapsUrl = lat && lng
+    ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " " + address)}`;
 
   return (
     <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
       <Card className="group overflow-hidden border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-          {photoUrl ? (
-            <img
-              src={photoUrl}
-              alt={name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
-            />
-          ) : (
-            <img
-              src="/placeholder.svg"
-              alt={name}
-              className="w-full h-full object-cover opacity-60"
-              loading="lazy"
-            />
-          )}
+          <img
+            src={photoUrl || "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80"}
+            alt={name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            loading="lazy"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80";
+            }}
+          />
           <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground">{category}</Badge>
           <div className="absolute top-3 right-3 bg-background/80 backdrop-blur-sm rounded-full p-1.5">
             <ExternalLink className="h-3.5 w-3.5 text-foreground" />
