@@ -52,16 +52,7 @@ const Explore = () => {
   const fetchPlaces = async () => {
     setLoading(true);
     try {
-      // Load user prefs
       let userPrefs: Record<string, string> = {};
-      if (user) {
-        const { data } = await supabase
-          .from("onboarding_responses")
-          .select("travel_purpose, preferred_activity, budget_preference")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (data) userPrefs = data as Record<string, string>;
-      }
 
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/explore-places`,
