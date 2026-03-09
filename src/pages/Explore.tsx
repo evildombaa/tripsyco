@@ -52,31 +52,20 @@ const Explore = () => {
   const fetchPlaces = async () => {
     setLoading(true);
     try {
-      let userPrefs: Record<string, string> = {};
+      const userPrefs: Record<string, string> = {};
 
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/explore-places`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            category: activeCategory,
-            preferences: userPrefs,
-            searchQuery: query || undefined,
-          }),
-        }
-      );
+      const { data, error } = await supabase.functions.invoke("explore-places", {
+        body: {
+          category: activeCategory,
+          preferences: userPrefs,
+          searchQuery: query || undefined,
+        },
+      });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.places && data.places.length > 0) {
-          setPlaces(data.places);
-          setLoading(false);
-          return;
-        }
+      if (!error && data?.places && data.places.length > 0) {
+        setPlaces(data.places);
+        setLoading(false);
+        return;
       }
     } catch (error) {
       console.error("Error fetching places:", error);
