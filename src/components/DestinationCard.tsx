@@ -12,19 +12,40 @@ interface DestinationCardProps {
   placeId: string;
 }
 
-const DestinationCard = ({ name, address, photoUrl, rating, userRatingsTotal, category, placeId }: DestinationCardProps) => {
-  const mapsUrl = `https://www.google.com/maps/place/?q=place_id:${placeId}`;
+const DestinationCard = ({
+  name,
+  address,
+  photoUrl,
+  rating,
+  userRatingsTotal,
+  category,
+  placeId,
+}: DestinationCardProps) => {
+  const mapsQuery = `${name} ${address}`.trim();
+  const mapsUrl = placeId
+    ? `https://www.google.com/maps/search/?api=1&query_place_id=${encodeURIComponent(placeId)}&query=${encodeURIComponent(
+        mapsQuery
+      )}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`;
 
   return (
     <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
       <Card className="group overflow-hidden border-border/50 hover:shadow-lg transition-all duration-300 cursor-pointer h-full">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {photoUrl ? (
-            <img src={photoUrl} alt={name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+            <img
+              src={photoUrl}
+              alt={name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+            />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <MapPin className="h-12 w-12 text-muted-foreground/30" />
-            </div>
+            <img
+              src="/placeholder.svg"
+              alt={name}
+              className="w-full h-full object-cover opacity-60"
+              loading="lazy"
+            />
           )}
           <Badge className="absolute top-3 left-3 bg-primary text-primary-foreground">{category}</Badge>
           <div className="absolute top-3 right-3 bg-background/80 backdrop-blur-sm rounded-full p-1.5">
