@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 
 const fallbackPlaces = [
   { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "ChIJm8w2en1G0i0RMBqEbF1fRfU" },
@@ -54,10 +55,27 @@ serve(async (req) => {
 
     const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(
       q
-    )}&key=${GOOGLE_MAPS_API_KEY}`;
-    
+    )}&key=${GOOGLE_MAPS_API_KEY}&region=id&language=id`;
+
     const res = await fetch(url);
-    const data = await res.json();
+    const raw = await res.text();
+
+    let data: any = null;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      console.error("Google Places returned non-JSON:", raw.slice(0, 400));
+      return serveFallback(category);
+    }
+
+    if (!res.ok || (data.status && data.status !== "OK")) {
+      console.error("Google Places error:", {
+        httpStatus: res.status,
+        status: data.status,
+        error_message: data.error_message,
+      });
+      return serveFallback(category);
+    }
 
     if (!data.results || data.results.length === 0) {
       console.log("No results from Google Places, using fallback");
@@ -66,8 +84,11 @@ serve(async (req) => {
 
     const places = data.results.map((r: any) => {
       let photoUrl = null;
-      if (r.photos && r.photos.length > 0) {
-        photoUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photoreference=${r.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`;
+      if (r.photos && r.photos.length > 0 && SUPABASE_URL) {
+        const ref = r.photos[0].photo_reference;
+        photoUrl = `${SUPABASE_URL}/functions/v1/place-photo?ref=${encodeURIComponent(
+          ref
+        )}&maxwidth=800`;
       }
 
       return {
