@@ -6,7 +6,6 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import DestinationCard from "@/components/DestinationCard";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface Place {
   name: string;
@@ -15,23 +14,9 @@ interface Place {
   rating?: number;
   userRatingsTotal?: number;
   category: string;
-  placeId: string;
+  lat?: number;
+  lng?: number;
 }
-
-const fallbackPlaces: Place[] = [
-  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", placeId: "ChIJm8w2en1G0i0RMBqEbF1fRfU" },
-  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", rating: 4.5, userRatingsTotal: 32100, category: "Alam", placeId: "ChIJW2v5bKxJ0i0RhKMb3387bKk" },
-  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", rating: 4.7, userRatingsTotal: 65000, category: "Budaya", placeId: "ChIJf-UWJaBYei4RSwIBbwVfJaE" },
-  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", placeId: "ChIJK2FPsINb1y0R7qqn1sXQHLw" },
-  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", rating: 4.8, userRatingsTotal: 12000, category: "Alam", placeId: "ChIJjzPgsSk70i0ROFqYRDF6dXI" },
-  { name: "Malioboro", address: "Yogyakarta, Indonesia", rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", placeId: "ChIJB9-MlZFYei4RFKaIwGLEfHo" },
-  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", placeId: "ChIJL3G7sDBG0i0RlyFWSlqLsAg" },
-  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", placeId: "ChIJi0qTQOuPqy0RZOspMhmUkEI" },
-  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 28000, category: "Alam", placeId: "ChIJaYlbcBzc1y0RmvWcNkHMmQo" },
-  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", rating: 4.7, userRatingsTotal: 15000, category: "Alam", placeId: "ChIJN2lBUi7tMTARQx0OxhHf2EQ" },
-  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", rating: 4.5, userRatingsTotal: 38000, category: "Alam", placeId: "ChIJJzkVqaxJ0i0RxGGLKAqbg3c" },
-  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", rating: 4.9, userRatingsTotal: 5200, category: "Alam", placeId: "ChIJv2fzmCa3uy0RPP_rIcN8VCk" },
-];
 
 const categories = ["Semua", "Alam", "Kuliner", "Budaya", "Petualangan", "Relaksasi"];
 
@@ -40,11 +25,9 @@ const Explore = () => {
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState("Semua");
-  const [places, setPlaces] = useState<Place[]>(fallbackPlaces);
+  const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
 
-  // Try fetching from Google Maps, fallback to hardcoded
   useEffect(() => {
     fetchPlaces();
   }, [activeCategory]);
@@ -52,42 +35,25 @@ const Explore = () => {
   const fetchPlaces = async () => {
     setLoading(true);
     try {
-      const userPrefs: Record<string, string> = {};
-
       const { data, error } = await supabase.functions.invoke("explore-places", {
         body: {
           category: activeCategory,
-          preferences: userPrefs,
           searchQuery: query || undefined,
         },
       });
 
       if (!error && data?.places && data.places.length > 0) {
         setPlaces(data.places);
-        setLoading(false);
-        return;
       }
     } catch (error) {
       console.error("Error fetching places:", error);
     }
-
-    // Fallback
-    let filtered = fallbackPlaces;
-    if (activeCategory !== "Semua") {
-      filtered = fallbackPlaces.filter((p) => p.category === activeCategory);
-      if (filtered.length === 0) filtered = fallbackPlaces;
-    }
-    setPlaces(filtered);
     setLoading(false);
   };
 
-  const displayed = query
-    ? places.filter(
-        (p) =>
-          p.name.toLowerCase().includes(query.toLowerCase()) ||
-          p.address.toLowerCase().includes(query.toLowerCase())
-      )
-    : places;
+  const handleSearch = () => {
+    fetchPlaces();
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -105,7 +71,7 @@ const Explore = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") fetchPlaces();
+                  if (e.key === "Enter") handleSearch();
                 }}
                 className="w-full bg-transparent text-foreground placeholder:text-muted-foreground outline-none text-sm"
               />
@@ -129,10 +95,10 @@ const Explore = () => {
             <div className="flex justify-center py-20">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : displayed.length > 0 ? (
+          ) : places.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayed.map((place) => (
-                <DestinationCard key={place.placeId} {...place} />
+              {places.map((place, idx) => (
+                <DestinationCard key={`${place.name}-${idx}`} {...place} />
               ))}
             </div>
           ) : (
