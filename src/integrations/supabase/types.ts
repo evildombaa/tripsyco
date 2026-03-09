@@ -232,60 +232,6 @@ export type Database = {
           },
         ]
       }
-      onboarding_responses: {
-        Row: {
-          budget_preference: string
-          completed: boolean
-          created_at: string
-          id: string
-          local_interaction: string
-          preferred_activity: string
-          preferred_activity_other: string | null
-          travel_companion: string
-          travel_companion_other: string | null
-          travel_purpose: string
-          travel_purpose_other: string | null
-          travel_style: string
-          travel_style_other: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          budget_preference?: string
-          completed?: boolean
-          created_at?: string
-          id?: string
-          local_interaction?: string
-          preferred_activity?: string
-          preferred_activity_other?: string | null
-          travel_companion?: string
-          travel_companion_other?: string | null
-          travel_purpose?: string
-          travel_purpose_other?: string | null
-          travel_style?: string
-          travel_style_other?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          budget_preference?: string
-          completed?: boolean
-          created_at?: string
-          id?: string
-          local_interaction?: string
-          preferred_activity?: string
-          preferred_activity_other?: string | null
-          travel_companion?: string
-          travel_companion_other?: string | null
-          travel_purpose?: string
-          travel_purpose_other?: string | null
-          travel_style?: string
-          travel_style_other?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           avatar_url: string | null
