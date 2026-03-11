@@ -96,10 +96,23 @@ const Itinerary = () => {
     }
   };
 
-  const handleFeedbackDone = () => {
-    // Reload the editor
-    setMode("editor");
-    toast({ title: "Itinerary selesai! 🎉" });
+  const handleFeedbackDone = async () => {
+    // Delete the current itinerary and redirect to choose mode
+    if (itineraryId) {
+      try {
+        await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
+        await supabase.from("itinerary_feedback").delete().eq("itinerary_id", itineraryId);
+        await supabase.from("itinerary_preferences").delete().eq("itinerary_id", itineraryId);
+        await supabase.from("itineraries").delete().eq("id", itineraryId);
+      } catch (e) {
+        console.error("Error deleting itinerary:", e);
+      }
+    }
+    setItineraryId(null);
+    setTripName("Perjalanan Baru");
+    setDays([]);
+    setMode("choose");
+    toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
 
   const handleAIComplete = async (prefs: ItineraryPreferences) => {
