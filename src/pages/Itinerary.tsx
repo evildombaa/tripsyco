@@ -81,12 +81,6 @@ const Itinerary = () => {
     setMode("manual");
   };
 
-  const handleNewItinerary = () => {
-    setItineraryId(null);
-    setTripName("Perjalanan Baru");
-    setDays([]);
-    setMode("choose");
-  };
 
   const handleFinish = () => {
     if (itineraryId) {
