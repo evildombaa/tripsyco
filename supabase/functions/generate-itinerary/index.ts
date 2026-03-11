@@ -19,7 +19,6 @@ serve(async (req) => {
     const { preferences, feedback } = await req.json();
     const { destination, travel_purpose, travel_companion, travel_style, budget, duration } = preferences;
 
-    // Determine number of days
     let numDays = 1;
     if (duration === "2–3 hari") numDays = 3;
     else if (duration === "4–5 hari") numDays = 5;
@@ -30,7 +29,7 @@ serve(async (req) => {
       numDays = isNaN(parsed) ? 3 : parsed;
     }
 
-    // Step 1: Search places via Google Maps Text Search
+    // Search places
     const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=tempat+wisata+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
     const placesRes = await fetch(placesUrl);
     const placesData = await placesRes.json();
@@ -39,9 +38,13 @@ serve(async (req) => {
       name: p.name,
       address: p.formatted_address,
       rating: p.rating,
+      place_id: p.place_id,
+      photo_url: p.photos?.[0]?.photo_reference
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+        : null,
     }));
 
-    // Step 2: Search for restaurants
+    // Search restaurants
     const foodUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=restoran+populer+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
     const foodRes = await fetch(foodUrl);
     const foodData = await foodRes.json();
@@ -50,18 +53,19 @@ serve(async (req) => {
       name: p.name,
       address: p.formatted_address,
       rating: p.rating,
+      place_id: p.place_id,
+      photo_url: p.photos?.[0]?.photo_reference
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+        : null,
     }));
 
-    // Build feedback context for personalization
     let feedbackContext = "";
     if (feedback && Array.isArray(feedback) && feedback.length > 0) {
-      feedbackContext = `\n\nPENTING - Berikut feedback dari perjalanan sebelumnya user ini. Gunakan ini untuk mempersonalisasi itinerary:
+      feedbackContext = `\n\nPENTING - Berikut feedback dari perjalanan sebelumnya user ini:
 ${feedback.map((f: any, i: number) => `${i + 1}. Rating: ${f.rating}/5 | Pendapat: "${f.feedback}" | Saran: "${f.suggestions}"`).join("\n")}
-
-Sesuaikan itinerary berdasarkan feedback di atas. Misalnya jika user bilang "terlalu padat", buat jadwal lebih santai. Jika user minta "lebih banyak kuliner", tambahkan tempat makan.`;
+Sesuaikan itinerary berdasarkan feedback di atas.`;
     }
 
-    // Step 3: Generate itinerary with OpenAI
     const prompt = `Kamu adalah travel planner profesional untuk wisata di Indonesia.
 Buatkan itinerary ${numDays} hari untuk perjalanan ke ${destination} dengan detail berikut:
 - Tujuan: ${travel_purpose}
@@ -70,13 +74,18 @@ Buatkan itinerary ${numDays} hari untuk perjalanan ke ${destination} dengan deta
 - Budget: ${budget}
 
 Berikut tempat wisata populer di ${destination} (dari Google Maps):
-${topPlaces.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating})`).join("\n")}
+${topPlaces.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
 
 Berikut restoran populer di ${destination}:
-${topFood.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating})`).join("\n")}
+${topFood.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
 ${feedbackContext}
 
-PENTING: Gunakan tempat-tempat dari daftar di atas sebanyak mungkin. Tambahkan juga tempat lain yang kamu tahu jika relevan.
+PENTING: 
+1. Gunakan tempat-tempat dari daftar di atas sebanyak mungkin
+2. Berikan status untuk setiap aktivitas: "must", "want", atau "maybe"
+3. Berikan estimasi biaya setiap aktivitas dalam Rupiah
+4. Berikan deskripsi singkat untuk setiap aktivitas
+5. Pertimbangkan jarak dan waktu tempuh antar tempat
 
 Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan struktur:
 {
@@ -85,7 +94,16 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
     {
       "date_label": "Hari 1",
       "items": [
-        { "time": "08:00", "activity": "Deskripsi aktivitas", "location": "Nama tempat" }
+        {
+          "time": "08:00",
+          "activity": "Deskripsi aktivitas",
+          "location": "Nama tempat",
+          "status": "must",
+          "description": "Deskripsi singkat 1-2 kalimat",
+          "estimated_cost": 50000,
+          "rating": 4.5,
+          "place_id": "place_id jika ada"
+        }
       ]
     }
   ]
@@ -122,6 +140,24 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
         itinerary = JSON.parse(match[0]);
       } else {
         throw new Error("Failed to parse itinerary from AI response");
+      }
+    }
+
+    // Match photo URLs
+    const allPlaces = [...topPlaces, ...topFood];
+    if (itinerary.days) {
+      for (const day of itinerary.days) {
+        for (const item of day.items || []) {
+          const matched = allPlaces.find(
+            (p: any) =>
+              p.name.toLowerCase().includes(item.location?.toLowerCase() || "") ||
+              item.location?.toLowerCase().includes(p.name.toLowerCase())
+          );
+          if (matched) {
+            item.photo_url = matched.photo_url;
+            item.place_id = item.place_id || matched.place_id;
+          }
+        }
       }
     }
 

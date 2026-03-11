@@ -7,9 +7,11 @@ import Footer from "@/components/Footer";
 import ItineraryEditor, { DayPlan } from "@/components/ItineraryEditor";
 import ItineraryQuestionnaire, { ItineraryPreferences } from "@/components/ItineraryQuestionnaire";
 import ItineraryFeedback from "@/components/ItineraryFeedback";
+import ItineraryChatbot from "@/components/itinerary/ItineraryChatbot";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import type { EnhancedItem } from "@/components/itinerary/ActivityCard";
 
 type Mode = "loading" | "choose" | "manual" | "ai-questionnaire" | "ai-generating" | "editor" | "feedback";
 
@@ -17,6 +19,8 @@ const Itinerary = () => {
   const [mode, setMode] = useState<Mode>("loading");
   const [tripName, setTripName] = useState("Perjalanan Baru");
   const [days, setDays] = useState<DayPlan[]>([]);
+  const [budget, setBudget] = useState(0);
+  const [destination, setDestination] = useState("");
   const [saving, setSaving] = useState(false);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
   const { user } = useAuth();
@@ -34,9 +38,20 @@ const Itinerary = () => {
         .limit(1);
 
       if (itineraries && itineraries.length > 0) {
-        const itin = itineraries[0];
+        const itin = itineraries[0] as any;
         setItineraryId(itin.id);
         setTripName(itin.trip_name);
+        setBudget(itin.budget || 0);
+
+        // Load preferences for destination
+        const { data: prefs } = await supabase
+          .from("itinerary_preferences" as any)
+          .select("destination")
+          .eq("itinerary_id", itin.id)
+          .limit(1);
+        if (prefs && prefs.length > 0) {
+          setDestination((prefs[0] as any).destination || "");
+        }
 
         const { data: daysData } = await supabase
           .from("itinerary_days")
@@ -46,7 +61,7 @@ const Itinerary = () => {
 
         if (daysData && daysData.length > 0) {
           const loadedDays: DayPlan[] = [];
-          for (const d of daysData) {
+          for (const d of daysData as any[]) {
             const { data: items } = await supabase
               .from("itinerary_day_items")
               .select("*")
@@ -56,11 +71,18 @@ const Itinerary = () => {
             loadedDays.push({
               id: d.id,
               date: d.trip_date || "",
-              items: (items || []).map((item) => ({
+              location: d.location || "",
+              items: (items || []).map((item: any) => ({
                 id: item.id,
                 time: item.time_slot,
                 activity: item.activity,
                 location: item.location,
+                status: item.status || "want",
+                description: item.description || "",
+                image_url: item.image_url || null,
+                rating: item.rating || null,
+                place_id: item.place_id || null,
+                estimated_cost: item.estimated_cost || 0,
               })),
             });
           }
@@ -77,10 +99,10 @@ const Itinerary = () => {
   const handleManual = () => {
     setItineraryId(null);
     setTripName("Perjalanan Baru");
-    setDays([{ id: Date.now().toString(), date: "", items: [] }]);
+    setBudget(0);
+    setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
     setMode("manual");
   };
-
 
   const handleFinish = () => {
     if (itineraryId) {
@@ -91,7 +113,6 @@ const Itinerary = () => {
   };
 
   const handleFeedbackDone = async () => {
-    // Delete the current itinerary and redirect to choose mode
     if (itineraryId) {
       try {
         await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
@@ -104,6 +125,7 @@ const Itinerary = () => {
     }
     setItineraryId(null);
     setTripName("Perjalanan Baru");
+    setBudget(0);
     setDays([]);
     setMode("choose");
     toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
@@ -111,16 +133,16 @@ const Itinerary = () => {
 
   const handleAIComplete = async (prefs: ItineraryPreferences) => {
     setMode("ai-generating");
+    setDestination(prefs.destination);
     try {
       const { data: itin, error: itinErr } = await supabase
         .from("itineraries")
-        .insert({ user_id: user!.id, trip_name: `Perjalanan ke ${prefs.destination}` })
+        .insert({ user_id: user!.id, trip_name: `Perjalanan ke ${prefs.destination}`, budget: 0 } as any)
         .select()
         .single();
       if (itinErr) throw itinErr;
       setItineraryId(itin.id);
 
-      // Save preferences
       await supabase.from("itinerary_preferences" as any).insert({
         itinerary_id: itin.id,
         destination: prefs.destination,
@@ -135,7 +157,6 @@ const Itinerary = () => {
         duration_other: prefs.duration_other || null,
       } as any);
 
-      // Fetch past feedback for personalization
       const { data: feedbackData } = await supabase
         .from("itinerary_feedback" as any)
         .select("rating, feedback_text, suggestions")
@@ -182,13 +203,18 @@ const Itinerary = () => {
         const dayData = itinerary.days[i];
         const { data: dayRow, error: dayErr } = await supabase
           .from("itinerary_days")
-          .insert({ itinerary_id: itin.id, sort_order: i, trip_date: null })
+          .insert({
+            itinerary_id: itin.id,
+            sort_order: i,
+            trip_date: null,
+            location: prefs.destination,
+          } as any)
           .select()
           .single();
         if (dayErr) throw dayErr;
 
         const items = dayData.items || [];
-        const localItems = [];
+        const localItems: EnhancedItem[] = [];
         for (let j = 0; j < items.length; j++) {
           const item = items[j];
           const { data: itemRow, error: itemErr } = await supabase
@@ -199,16 +225,42 @@ const Itinerary = () => {
               activity: item.activity || "",
               location: item.location || "",
               sort_order: j,
-            })
+              status: item.status || "want",
+              description: item.description || "",
+              image_url: item.photo_url || null,
+              rating: item.rating || null,
+              place_id: item.place_id || null,
+              estimated_cost: item.estimated_cost || 0,
+            } as any)
             .select()
             .single();
           if (itemErr) throw itemErr;
-          localItems.push({ id: itemRow.id, time: itemRow.time_slot, activity: itemRow.activity, location: itemRow.location });
+          const row = itemRow as any;
+          localItems.push({
+            id: row.id,
+            time: row.time_slot,
+            activity: row.activity,
+            location: row.location,
+            status: row.status || "want",
+            description: row.description || "",
+            image_url: row.image_url || null,
+            rating: row.rating || null,
+            place_id: row.place_id || null,
+            estimated_cost: row.estimated_cost || 0,
+          });
         }
-        generatedDays.push({ id: dayRow.id, date: dayRow.trip_date || "", items: localItems });
+        generatedDays.push({
+          id: dayRow.id,
+          date: (dayRow as any).trip_date || "",
+          location: (dayRow as any).location || prefs.destination,
+          items: localItems,
+        });
       }
 
-      await supabase.from("itineraries").update({ trip_name: itinerary.trip_name || `Perjalanan ke ${prefs.destination}` }).eq("id", itin.id);
+      await supabase
+        .from("itineraries")
+        .update({ trip_name: itinerary.trip_name || `Perjalanan ke ${prefs.destination}` })
+        .eq("id", itin.id);
       setDays(generatedDays);
       setMode("editor");
       toast({ title: "Itinerary berhasil dibuat! 🎉", description: "Kamu bisa mengedit sesuai keinginan." });
@@ -221,36 +273,71 @@ const Itinerary = () => {
 
   const handleSave = async () => {
     if (!user) return;
+    if (budget <= 0) {
+      toast({ title: "Masukkan budget terlebih dahulu!", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       if (itineraryId) {
-        await supabase.from("itineraries").update({ trip_name: tripName }).eq("id", itineraryId);
+        await supabase.from("itineraries").update({ trip_name: tripName, budget } as any).eq("id", itineraryId);
         await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
         for (let i = 0; i < days.length; i++) {
           const day = days[i];
           const { data: dayRow, error: dayErr } = await supabase
             .from("itinerary_days")
-            .insert({ itinerary_id: itineraryId, sort_order: i, trip_date: day.date || null })
-            .select().single();
+            .insert({ itinerary_id: itineraryId, sort_order: i, trip_date: day.date || null, location: day.location || "" } as any)
+            .select()
+            .single();
           if (dayErr) throw dayErr;
           for (let j = 0; j < day.items.length; j++) {
             const item = day.items[j];
-            await supabase.from("itinerary_day_items").insert({ day_id: dayRow.id, time_slot: item.time, activity: item.activity, location: item.location, sort_order: j });
+            await supabase.from("itinerary_day_items").insert({
+              day_id: dayRow.id,
+              time_slot: item.time,
+              activity: item.activity,
+              location: item.location,
+              sort_order: j,
+              status: item.status || "want",
+              description: item.description || "",
+              image_url: item.image_url || null,
+              rating: item.rating || null,
+              place_id: item.place_id || null,
+              estimated_cost: item.estimated_cost || 0,
+            } as any);
           }
         }
       } else {
         const { data: itin, error: itinErr } = await supabase
-          .from("itineraries").insert({ user_id: user.id, trip_name: tripName }).select().single();
+          .from("itineraries")
+          .insert({ user_id: user.id, trip_name: tripName, budget } as any)
+          .select()
+          .single();
         if (itinErr) throw itinErr;
         setItineraryId(itin.id);
         for (let i = 0; i < days.length; i++) {
           const day = days[i];
           const { data: dayRow, error: dayErr } = await supabase
-            .from("itinerary_days").insert({ itinerary_id: itin.id, sort_order: i, trip_date: day.date || null }).select().single();
+            .from("itinerary_days")
+            .insert({ itinerary_id: itin.id, sort_order: i, trip_date: day.date || null, location: day.location || "" } as any)
+            .select()
+            .single();
           if (dayErr) throw dayErr;
           for (let j = 0; j < day.items.length; j++) {
             const item = day.items[j];
-            await supabase.from("itinerary_day_items").insert({ day_id: dayRow.id, time_slot: item.time, activity: item.activity, location: item.location, sort_order: j });
+            await supabase.from("itinerary_day_items").insert({
+              day_id: dayRow.id,
+              time_slot: item.time,
+              activity: item.activity,
+              location: item.location,
+              sort_order: j,
+              status: item.status || "want",
+              description: item.description || "",
+              image_url: item.image_url || null,
+              rating: item.rating || null,
+              place_id: item.place_id || null,
+              estimated_cost: item.estimated_cost || 0,
+            } as any);
           }
         }
       }
@@ -260,6 +347,28 @@ const Itinerary = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const itineraryContext = {
+    trip_name: tripName,
+    budget,
+    destination,
+    days: days.map((d, i) => ({
+      day: i + 1,
+      date: d.date,
+      location: d.location,
+      activities: d.items.map((item) => ({
+        time: item.time,
+        activity: item.activity,
+        location: item.location,
+        status: item.status,
+        estimated_cost: item.estimated_cost,
+      })),
+    })),
+    total_estimated_cost: days.reduce(
+      (sum, d) => sum + d.items.reduce((s, i) => s + (i.estimated_cost || 0), 0),
+      0
+    ),
   };
 
   return (
@@ -278,22 +387,32 @@ const Itinerary = () => {
               <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-3">Buat Itinerary Baru</h1>
               <p className="text-muted-foreground mb-10">Pilih cara membuat rencana perjalananmu</p>
               <div className="grid sm:grid-cols-2 gap-6">
-                <Card className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group" onClick={handleManual}>
+                <Card
+                  className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                  onClick={handleManual}
+                >
                   <div className="flex flex-col items-center gap-4">
                     <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                       <PenLine className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">Buat Manual</h3>
-                    <p className="text-sm text-muted-foreground">Susun sendiri aktivitas, waktu, dan lokasi perjalananmu</p>
+                    <p className="text-sm text-muted-foreground">
+                      Susun sendiri aktivitas, waktu, dan lokasi perjalananmu
+                    </p>
                   </div>
                 </Card>
-                <Card className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group" onClick={() => setMode("ai-questionnaire")}>
+                <Card
+                  className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                  onClick={() => setMode("ai-questionnaire")}
+                >
                   <div className="flex flex-col items-center gap-4">
                     <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                       <Sparkles className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
                     <h3 className="text-lg font-semibold text-foreground">Buat Otomatis</h3>
-                    <p className="text-sm text-muted-foreground">Jawab beberapa pertanyaan, AI akan buatkan itinerary untukmu</p>
+                    <p className="text-sm text-muted-foreground">
+                      Jawab beberapa pertanyaan, AI akan buatkan itinerary untukmu
+                    </p>
                   </div>
                 </Card>
               </div>
@@ -308,7 +427,9 @@ const Itinerary = () => {
             <div className="max-w-lg mx-auto text-center py-20">
               <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-6" />
               <h2 className="text-xl font-bold font-serif text-foreground mb-2">Sedang membuat itinerary...</h2>
-              <p className="text-muted-foreground text-sm">AI sedang merangkai rencana perjalanan terbaik untukmu.</p>
+              <p className="text-muted-foreground text-sm">
+                AI sedang merangkai rencana perjalanan terbaik untukmu.
+              </p>
             </div>
           )}
 
@@ -319,6 +440,9 @@ const Itinerary = () => {
                 setTripName={setTripName}
                 days={days}
                 setDays={setDays}
+                budget={budget}
+                setBudget={setBudget}
+                destination={destination}
                 onSave={handleSave}
                 saving={saving}
               />
@@ -336,6 +460,11 @@ const Itinerary = () => {
         </div>
       </div>
       <Footer />
+
+      {/* AI Chatbot - visible when editing */}
+      {(mode === "manual" || mode === "editor") && (
+        <ItineraryChatbot itineraryContext={itineraryContext} />
+      )}
     </div>
   );
 };
