@@ -328,12 +328,9 @@ const Itinerary = () => {
                 onSave={handleSave}
                 saving={saving}
               />
-              <div className="max-w-3xl mx-auto mt-8 flex flex-col sm:flex-row gap-3">
-                <Button variant="outline" className="flex-1" onClick={handleFinish}>
+              <div className="max-w-3xl mx-auto mt-8">
+                <Button variant="outline" className="w-full" onClick={handleFinish}>
                   <CheckCircle className="h-4 w-4 mr-2" /> Selesaikan Itinerary
-                </Button>
-                <Button variant="ghost" className="flex-1" onClick={handleNewItinerary}>
-                  <Plus className="h-4 w-4 mr-2" /> Buat Itinerary Baru
                 </Button>
               </div>
             </>
