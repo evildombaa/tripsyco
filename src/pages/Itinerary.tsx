@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, PenLine, Loader2, Plus, CheckCircle } from "lucide-react";
+import { Sparkles, PenLine, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
@@ -81,12 +81,6 @@ const Itinerary = () => {
     setMode("manual");
   };
 
-  const handleNewItinerary = () => {
-    setItineraryId(null);
-    setTripName("Perjalanan Baru");
-    setDays([]);
-    setMode("choose");
-  };
 
   const handleFinish = () => {
     if (itineraryId) {
@@ -96,10 +90,23 @@ const Itinerary = () => {
     }
   };
 
-  const handleFeedbackDone = () => {
-    // Reload the editor
-    setMode("editor");
-    toast({ title: "Itinerary selesai! 🎉" });
+  const handleFeedbackDone = async () => {
+    // Delete the current itinerary and redirect to choose mode
+    if (itineraryId) {
+      try {
+        await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
+        await supabase.from("itinerary_feedback").delete().eq("itinerary_id", itineraryId);
+        await supabase.from("itinerary_preferences").delete().eq("itinerary_id", itineraryId);
+        await supabase.from("itineraries").delete().eq("id", itineraryId);
+      } catch (e) {
+        console.error("Error deleting itinerary:", e);
+      }
+    }
+    setItineraryId(null);
+    setTripName("Perjalanan Baru");
+    setDays([]);
+    setMode("choose");
+    toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
 
   const handleAIComplete = async (prefs: ItineraryPreferences) => {
@@ -315,12 +322,9 @@ const Itinerary = () => {
                 onSave={handleSave}
                 saving={saving}
               />
-              <div className="max-w-3xl mx-auto mt-8 flex flex-col sm:flex-row gap-3">
-                <Button variant="outline" className="flex-1" onClick={handleFinish}>
+              <div className="max-w-3xl mx-auto mt-8">
+                <Button variant="outline" className="w-full" onClick={handleFinish}>
                   <CheckCircle className="h-4 w-4 mr-2" /> Selesaikan Itinerary
-                </Button>
-                <Button variant="ghost" className="flex-1" onClick={handleNewItinerary}>
-                  <Plus className="h-4 w-4 mr-2" /> Buat Itinerary Baru
                 </Button>
               </div>
             </>
