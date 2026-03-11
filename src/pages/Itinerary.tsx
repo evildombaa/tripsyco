@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, PenLine, Loader2, Plus, CheckCircle } from "lucide-react";
+import { Sparkles, PenLine, Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
