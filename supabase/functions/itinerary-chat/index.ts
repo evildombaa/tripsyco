@@ -15,34 +15,112 @@ serve(async (req) => {
 
     const { messages, itinerary_context } = await req.json();
 
-    const systemPrompt = `Kamu adalah asisten perjalanan AI bernama Tripsy Assistant. Kamu membantu user mengatur itinerary perjalanan mereka di Indonesia.
+    const systemPrompt = `Kamu adalah asisten perjalanan AI bernama Tripsy Assistant. Kamu LANGSUNG MENGUBAH itinerary user, bukan hanya memberikan saran.
 
 KONTEKS ITINERARY SAAT INI:
 ${JSON.stringify(itinerary_context, null, 2)}
 
-KEMAMPUANMU:
-1. Memberikan rekomendasi tempat wisata yang serupa
-2. Menyesuaikan itinerary jika budget melebihi batas
-3. Mengganti seluruh rencana perjalanan atau hari tertentu
-4. Memberikan tips perjalanan dan estimasi biaya
-5. Menyarankan alternatif jika cuaca buruk
-6. Mengoptimalkan rute perjalanan
-
-ATURAN:
+ATURAN PENTING:
+- Ketika user meminta perubahan (ganti, tambah, hapus, sesuaikan), SELALU sertakan JSON action di akhir response
+- Berikan penjelasan SINGKAT (1-2 kalimat) tentang apa yang kamu ubah, lalu sertakan JSON
 - Selalu jawab dalam Bahasa Indonesia
 - Berikan estimasi biaya dalam Rupiah
-- Jika user ingin mengubah itinerary, berikan respons dalam format yang jelas
-- Jika user bertanya tentang tempat, berikan deskripsi singkat dan rating jika kamu tahu
-- Selalu pertimbangkan budget user saat memberikan saran
+- Pertimbangkan budget user saat memberikan saran
+- day_index dimulai dari 0 (hari 1 = index 0)
+- activity_index dimulai dari 0
 
-Jika user meminta perubahan itinerary, sertakan JSON di akhir response dalam format:
+FORMAT ACTION (WAJIB disertakan saat ada perubahan):
+
+Untuk mengganti satu aktivitas:
 \`\`\`json
 {
-  "action": "modify_day" | "replace_activity" | "add_activity" | "remove_activity" | "regenerate_day" | "adjust_budget",
+  "action": "replace_activity",
   "day_index": 0,
-  "changes": { ... }
+  "changes": {
+    "activity_index": 0,
+    "new_activity": {
+      "time": "08:00",
+      "activity": "Nama Aktivitas",
+      "location": "Nama Tempat",
+      "status": "want",
+      "description": "Deskripsi singkat",
+      "estimated_cost": 50000,
+      "rating": 4.5
+    }
+  }
 }
-\`\`\``;
+\`\`\`
+
+Untuk menambah aktivitas:
+\`\`\`json
+{
+  "action": "add_activity",
+  "day_index": 0,
+  "changes": {
+    "new_activity": {
+      "time": "15:00",
+      "activity": "Nama Aktivitas",
+      "location": "Nama Tempat",
+      "status": "want",
+      "description": "Deskripsi singkat",
+      "estimated_cost": 30000
+    }
+  }
+}
+\`\`\`
+
+Untuk menghapus aktivitas:
+\`\`\`json
+{
+  "action": "remove_activity",
+  "day_index": 0,
+  "changes": { "activity_index": 1 }
+}
+\`\`\`
+
+Untuk mengganti seluruh hari:
+\`\`\`json
+{
+  "action": "regenerate_day",
+  "day_index": 0,
+  "changes": {
+    "activities": [
+      { "time": "08:00", "activity": "...", "location": "...", "status": "must", "description": "...", "estimated_cost": 0 },
+      { "time": "10:00", "activity": "...", "location": "...", "status": "want", "description": "...", "estimated_cost": 0 }
+    ]
+  }
+}
+\`\`\`
+
+Untuk menyesuaikan budget:
+\`\`\`json
+{
+  "action": "adjust_budget",
+  "changes": {
+    "new_budget": 1500000,
+    "day_updates": [
+      {
+        "day_index": 0,
+        "activities": [...]
+      }
+    ]
+  }
+}
+\`\`\`
+
+Untuk modify hari (ubah lokasi + aktivitas):
+\`\`\`json
+{
+  "action": "modify_day",
+  "day_index": 0,
+  "changes": {
+    "location": "Lokasi Baru",
+    "activities": [...]
+  }
+}
+\`\`\`
+
+Jika user hanya bertanya informasi tanpa minta perubahan, jawab biasa TANPA JSON.`;
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

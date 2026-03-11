@@ -463,7 +463,7 @@ const Itinerary = () => {
 
       {/* AI Chatbot - visible when editing */}
       {(mode === "manual" || mode === "editor") && (
-        <ItineraryChatbot itineraryContext={itineraryContext} />
+        <ItineraryChatbot itineraryContext={itineraryContext} days={days} setDays={setDays} budget={budget} setBudget={setBudget} />
       )}
     </div>
   );
