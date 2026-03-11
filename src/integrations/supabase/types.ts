@@ -46,6 +46,7 @@ export type Database = {
       }
       itineraries: {
         Row: {
+          budget: number | null
           created_at: string
           id: string
           trip_name: string
@@ -53,6 +54,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          budget?: number | null
           created_at?: string
           id?: string
           trip_name?: string
@@ -60,6 +62,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          budget?: number | null
           created_at?: string
           id?: string
           trip_name?: string
@@ -73,27 +76,45 @@ export type Database = {
           activity: string
           created_at: string
           day_id: string
+          description: string | null
+          estimated_cost: number | null
           id: string
+          image_url: string | null
           location: string
+          place_id: string | null
+          rating: number | null
           sort_order: number
+          status: string | null
           time_slot: string
         }
         Insert: {
           activity?: string
           created_at?: string
           day_id: string
+          description?: string | null
+          estimated_cost?: number | null
           id?: string
+          image_url?: string | null
           location?: string
+          place_id?: string | null
+          rating?: number | null
           sort_order?: number
+          status?: string | null
           time_slot?: string
         }
         Update: {
           activity?: string
           created_at?: string
           day_id?: string
+          description?: string | null
+          estimated_cost?: number | null
           id?: string
+          image_url?: string | null
           location?: string
+          place_id?: string | null
+          rating?: number | null
           sort_order?: number
+          status?: string | null
           time_slot?: string
         }
         Relationships: [
@@ -111,6 +132,7 @@ export type Database = {
           created_at: string
           id: string
           itinerary_id: string
+          location: string | null
           sort_order: number
           trip_date: string | null
         }
@@ -118,6 +140,7 @@ export type Database = {
           created_at?: string
           id?: string
           itinerary_id: string
+          location?: string | null
           sort_order?: number
           trip_date?: string | null
         }
@@ -125,6 +148,7 @@ export type Database = {
           created_at?: string
           id?: string
           itinerary_id?: string
+          location?: string | null
           sort_order?: number
           trip_date?: string | null
         }
