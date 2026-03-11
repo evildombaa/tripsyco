@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.place-photo]
 verify_jwt = false
+
+[functions.smart-recommend]
+verify_jwt = false
+
+[functions.itinerary-chat]
+verify_jwt = false
