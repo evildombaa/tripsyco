@@ -297,7 +297,7 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
         <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
         </Button>
-        {isOtherSelected && (
+        {(isOtherSelected || step.isNumeric) && (
           <Button onClick={handleNext} disabled={!canProceed}>
             {currentStep === totalSteps - 1 ? "Buat Itinerary" : "Lanjut"}
             {currentStep < totalSteps - 1 && <ArrowRight className="h-4 w-4 ml-1" />}
