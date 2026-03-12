@@ -88,7 +88,11 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
   const selectedValue = answers[step.field] || "";
   const isOtherSelected = isOther[step.field] || false;
   const otherValue = otherInputs[step.field] || "";
-  const canProceed = isOtherSelected ? otherValue.trim().length > 0 : selectedValue.length > 0;
+  const canProceed = step.isNumeric
+    ? Number(answers[step.field]) > 0
+    : isOtherSelected
+      ? otherValue.trim().length > 0
+      : selectedValue.length > 0;
 
   const buildPreferences = useCallback((): ItineraryPreferences => {
     const prefs: any = { destination };
@@ -97,7 +101,7 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
         prefs[s.field] = "Lainnya";
         prefs[s.otherField] = otherInputs[s.field] || "";
       } else {
-        prefs[s.field] = answers[s.field] || "";
+        prefs[s.field] = s.isNumeric ? Number(answers[s.field]) || 0 : answers[s.field] || "";
         if (s.otherField) prefs[s.otherField] = null;
       }
     }
