@@ -152,7 +152,7 @@ const Itinerary = () => {
         travel_companion_other: prefs.travel_companion_other || null,
         travel_style: prefs.travel_style,
         travel_style_other: prefs.travel_style_other || null,
-        budget: prefs.budget,
+        budget: String(prefs.budget),
         duration: prefs.duration,
         duration_other: prefs.duration_other || null,
       } as any);
@@ -180,6 +180,7 @@ const Itinerary = () => {
               travel_style: prefs.travel_style_other || prefs.travel_style,
               budget: prefs.budget,
               duration: prefs.duration_other || prefs.duration,
+              departure_date: prefs.departure_date,
             },
             feedback: (feedbackData || []).map((f: any) => ({
               rating: f.rating,
@@ -197,16 +198,29 @@ const Itinerary = () => {
 
       const { itinerary } = await res.json();
       setTripName(itinerary.trip_name || `Perjalanan ke ${prefs.destination}`);
+      setBudget(Number(prefs.budget) || 0);
+
+      // Calculate dates from departure_date
+      const departureDate = prefs.departure_date ? new Date(prefs.departure_date) : null;
 
       const generatedDays: DayPlan[] = [];
       for (let i = 0; i < itinerary.days.length; i++) {
         const dayData = itinerary.days[i];
+        
+        // Use date from AI response or calculate from departure
+        let tripDate: string | null = dayData.date || null;
+        if (!tripDate && departureDate) {
+          const d = new Date(departureDate);
+          d.setDate(d.getDate() + i);
+          tripDate = d.toISOString().split("T")[0];
+        }
+
         const { data: dayRow, error: dayErr } = await supabase
           .from("itinerary_days")
           .insert({
             itinerary_id: itin.id,
             sort_order: i,
-            trip_date: null,
+            trip_date: tripDate,
             location: prefs.destination,
           } as any)
           .select()
@@ -251,7 +265,7 @@ const Itinerary = () => {
         }
         generatedDays.push({
           id: dayRow.id,
-          date: (dayRow as any).trip_date || "",
+          date: tripDate || "",
           location: (dayRow as any).location || prefs.destination,
           items: localItems,
         });
@@ -259,7 +273,7 @@ const Itinerary = () => {
 
       await supabase
         .from("itineraries")
-        .update({ trip_name: itinerary.trip_name || `Perjalanan ke ${prefs.destination}` })
+        .update({ trip_name: itinerary.trip_name || `Perjalanan ke ${prefs.destination}`, budget: Number(prefs.budget) || 0 })
         .eq("id", itin.id);
       setDays(generatedDays);
       setMode("editor");
