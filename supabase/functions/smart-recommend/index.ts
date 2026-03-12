@@ -23,8 +23,9 @@ serve(async (req) => {
       existing_activities,
       date,
       destination,
-      mode, // "full_day" | "single" | "adapt"
+      mode, // "full_day" | "single" | "adapt" | "suggestions"
       current_location, // for single mode: last activity location
+      search_query, // for suggestions mode: user search term
     } = await req.json();
 
     const searchLocation = location || destination || "Indonesia";
