@@ -36,10 +36,13 @@ const steps: StepConfig[] = [
     allowOther: true,
   },
   {
-    question: "Budget yang Anda siapkan?",
+    question: "Berapa budget perjalanan Anda?",
     field: "budget",
-    options: ["Hemat", "Menengah", "Nyaman", "Premium"],
+    options: [],
     allowOther: false,
+    isNumeric: true,
+    placeholder: "Contoh: 5000000 (dalam Rupiah)",
+    prefix: "Rp",
   },
   {
     question: "Berapa lama perjalanan Anda?",
