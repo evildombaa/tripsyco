@@ -17,7 +17,7 @@ serve(async (req) => {
     if (!GOOGLE_MAPS_API_KEY) throw new Error("GOOGLE_MAPS_API_KEY not configured");
 
     const { preferences, feedback } = await req.json();
-    const { destination, travel_purpose, travel_companion, travel_style, budget, duration } = preferences;
+    const { destination, travel_purpose, travel_companion, travel_style, budget, duration, departure_date } = preferences;
 
     let numDays = 1;
     if (duration === "2–3 hari") numDays = 3;
@@ -27,6 +27,17 @@ serve(async (req) => {
     else {
       const parsed = parseInt(duration);
       numDays = isNaN(parsed) ? 3 : parsed;
+    }
+
+    // Calculate dates for each day
+    const dates: string[] = [];
+    if (departure_date) {
+      const startDate = new Date(departure_date);
+      for (let i = 0; i < numDays; i++) {
+        const d = new Date(startDate);
+        d.setDate(d.getDate() + i);
+        dates.push(d.toISOString().split("T")[0]);
+      }
     }
 
     // Search places
@@ -66,12 +77,23 @@ ${feedback.map((f: any, i: number) => `${i + 1}. Rating: ${f.rating}/5 | Pendapa
 Sesuaikan itinerary berdasarkan feedback di atas.`;
     }
 
+    const dateContext = dates.length > 0
+      ? `\nTANGGAL PERJALANAN: ${dates.join(", ")}
+PENTING - Pertimbangkan hal berikut untuk setiap tanggal:
+1. Hari besar nasional Indonesia (Idul Fitri, Natal, Nyepi, Waisak, Imlek, dll) yang jatuh pada tanggal-tanggal tersebut
+2. Event lokal atau festival di ${destination} pada tanggal tersebut
+3. Weekend vs weekday (kepadatan wisata berbeda)
+4. Jika ada hari besar: beberapa tempat wisata mungkin TUTUP, tempat ibadah bisa sangat ramai, harga bisa naik, lalu lintas bisa sangat macet
+5. Sesuaikan jadwal berdasarkan kondisi di atas (misalnya: hindari tempat ramai saat hari besar, rekomendasikan alternatif)`
+      : "";
+
     const prompt = `Kamu adalah travel planner profesional untuk wisata di Indonesia.
 Buatkan itinerary ${numDays} hari untuk perjalanan ke ${destination} dengan detail berikut:
 - Tujuan: ${travel_purpose}
 - Teman perjalanan: ${travel_companion}
 - Gaya perjalanan: ${travel_style}
-- Budget: ${budget}
+- Budget: Rp ${Number(budget).toLocaleString("id-ID")}
+${dateContext}
 
 Berikut tempat wisata populer di ${destination} (dari Google Maps):
 ${topPlaces.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
@@ -86,20 +108,24 @@ PENTING:
 3. Berikan estimasi biaya setiap aktivitas dalam Rupiah
 4. Berikan deskripsi singkat untuk setiap aktivitas
 5. Pertimbangkan jarak dan waktu tempuh antar tempat
+6. Jika ada hari besar/event pada tanggal tertentu, SEBUTKAN di deskripsi aktivitas dan sesuaikan jadwal
+7. Berikan peringatan jika ada tempat yang kemungkinan tutup atau sangat ramai
 
 Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan struktur:
 {
   "trip_name": "Nama perjalanan yang menarik",
   "days": [
     {
-      "date_label": "Hari 1",
+      "date": "${dates[0] || ""}",
+      "date_label": "Hari 1 - Senin, 15 Maret 2026",
+      "notes": "Catatan khusus tentang hari ini (event, hari besar, cuaca, dll) atau null",
       "items": [
         {
           "time": "08:00",
           "activity": "Deskripsi aktivitas",
           "location": "Nama tempat",
           "status": "must",
-          "description": "Deskripsi singkat 1-2 kalimat",
+          "description": "Deskripsi singkat 1-2 kalimat. Sertakan info hari besar/event jika relevan.",
           "estimated_cost": 50000,
           "rating": 4.5,
           "place_id": "place_id jika ada"

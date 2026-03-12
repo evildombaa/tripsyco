@@ -23,9 +23,9 @@ serve(async (req) => {
       existing_activities,
       date,
       destination,
-      mode, // "full_day" | "single" | "adapt" | "suggestions"
-      current_location, // for single mode: last activity location
-      search_query, // for suggestions mode: user search term
+      mode,
+      current_location,
+      search_query,
     } = await req.json();
 
     const searchLocation = location || destination || "Indonesia";
@@ -45,7 +45,6 @@ serve(async (req) => {
     const activitiesRes = await fetch(activitiesUrl);
     const activitiesData = await activitiesRes.json();
 
-    // Combine all places with photo URLs
     const allPlaces = [
       ...(attractionsData.results || []).slice(0, 12),
       ...(foodData.results || []).slice(0, 8),
@@ -64,16 +63,26 @@ serve(async (req) => {
       lng: p.geometry?.location?.lng,
     }));
 
-    // 4. Get travel times if we have a current location (for single recommendations)
     let travelContext = "";
     if (mode === "single" && current_location) {
       travelContext = `\nUser saat ini berada di: ${current_location}. Prioritaskan tempat yang dekat dari lokasi ini.`;
     }
 
-    // 5. Build AI prompt
     const existingList = (existing_activities || [])
       .map((a: any) => `- ${a.time}: ${a.activity} di ${a.location}`)
       .join("\n");
+
+    // Build date-aware context
+    const dateContext = date
+      ? `\nTANGGAL: ${date}
+PENTING - Pertimbangkan untuk tanggal ${date}:
+1. Apakah ada hari besar nasional Indonesia (Idul Fitri, Natal, Nyepi, Waisak, Imlek, Tahun Baru, 17 Agustus, dll)?
+2. Apakah ada event lokal atau festival di ${searchLocation}?
+3. Apakah ini weekend atau weekday? (Weekend = lebih ramai)
+4. Jika hari besar: beberapa tempat mungkin TUTUP, harga bisa naik 20-50%, lalu lintas sangat macet
+5. Sesuaikan rekomendasi: hindari tempat yang kemungkinan tutup atau sangat ramai
+6. Berikan peringatan di deskripsi jika ada hal penting terkait tanggal ini`
+      : "\nTANGGAL: tidak diketahui - berikan rekomendasi umum";
 
     let modeInstruction = "";
     if (mode === "full_day") {
@@ -96,7 +105,7 @@ Urutkan berdasarkan rating dan popularitas.`;
     const prompt = `Kamu adalah travel planner profesional Indonesia yang sangat detail.
 
 LOKASI: ${searchLocation}
-TANGGAL: ${date || "hari ini"}
+${dateContext}
 BUDGET TERSISA: Rp ${(budget_remaining || 0).toLocaleString("id-ID")}
 ${travelContext}
 
@@ -110,15 +119,17 @@ ${existingList ? `Aktivitas yang sudah ada (jangan duplikasi):\n${existingList}`
 PERTIMBANGKAN:
 1. Jarak dan waktu tempuh antar tempat (estimasi berdasarkan lokasi)
 2. Prediksi kondisi cuaca di ${searchLocation} pada ${date || "hari ini"} (estimasi berdasarkan musim dan lokasi)
-3. Kemungkinan event lokal atau hari besar Indonesia pada ${date || "hari ini"}
-4. Kepadatan pengunjung berdasarkan waktu (hindari jam ramai)
-5. Budget user - berikan estimasi biaya setiap aktivitas dalam Rupiah
-6. Waktu tempuh realistis dari satu tempat ke tempat lain
+3. Hari besar nasional & event lokal pada tanggal tersebut - INI SANGAT PENTING
+4. Kepadatan pengunjung berdasarkan waktu DAN tanggal (hari besar = sangat ramai)
+5. Budget user - berikan estimasi biaya setiap aktivitas dalam Rupiah (harga bisa naik saat hari besar)
+6. Waktu tempuh realistis (saat hari besar bisa 2-3x lebih lama karena macet)
+7. Tempat yang mungkin tutup pada hari besar tertentu
 
 Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan struktur:
 {
   "weather_prediction": "Deskripsi singkat prediksi cuaca",
-  "local_events": "Event lokal atau hari besar jika ada, atau 'Tidak ada event khusus'",
+  "local_events": "Event lokal, hari besar, atau festival jika ada pada tanggal ini, atau 'Tidak ada event khusus'",
+  "date_warnings": "Peringatan khusus terkait tanggal (tempat tutup, harga naik, macet) atau null",
   "budget_summary": {
     "total_estimated": 0,
     "remaining": 0,
@@ -130,7 +141,7 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
       "time": "08:00",
       "activity": "Nama aktivitas yang deskriptif",
       "location": "Nama tempat (harus dari daftar di atas jika memungkinkan)",
-      "description": "Deskripsi singkat 1-2 kalimat tentang aktivitas dan tempat ini",
+      "description": "Deskripsi singkat 1-2 kalimat. SERTAKAN info hari besar/event jika relevan.",
       "estimated_cost": 50000,
       "travel_time_from_previous": "15 menit",
       "status": "must" atau "want" atau "maybe",
@@ -138,7 +149,7 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
       "place_id": "place_id dari daftar di atas jika ada",
       "crowd_level": "low" atau "medium" atau "high",
       "weather_suitable": true,
-      "tips": "Tips singkat untuk aktivitas ini"
+      "tips": "Tips singkat termasuk peringatan hari besar jika relevan"
     }
   ]
 }`;
@@ -177,7 +188,7 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
       }
     }
 
-    // Match photo URLs from Google Places data
+    // Match photo URLs
     if (result.recommendations) {
       for (const rec of result.recommendations) {
         const matchedPlace = allPlaces.find(

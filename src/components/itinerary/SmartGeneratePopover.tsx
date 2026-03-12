@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Sparkles, Loader2, Clock } from "lucide-react";
+import { Sparkles, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { EnhancedItem } from "./ActivityCard";
 
@@ -30,11 +30,12 @@ const SmartGeneratePopover = ({
   const [result, setResult] = useState<any>(null);
   const { toast } = useToast();
 
+  const hasDate = !!dayDate;
+  const hasLocation = !!dayLocation;
+  const canGenerate = hasDate && hasLocation;
+
   const handleGenerate = async () => {
-    if (!dayLocation) {
-      toast({ title: "Masukkan lokasi hari ini terlebih dahulu", variant: "destructive" });
-      return;
-    }
+    if (!canGenerate) return;
     setLoading(true);
     setResult(null);
     try {
@@ -67,7 +68,6 @@ const SmartGeneratePopover = ({
       const data = await res.json();
       setResult(data);
 
-      // Convert to EnhancedItems
       const items: EnhancedItem[] = (data.recommendations || []).map((rec: any, i: number) => ({
         id: `gen-${Date.now()}-${i}`,
         time: rec.time || "",
@@ -105,9 +105,27 @@ const SmartGeneratePopover = ({
           <div>
             <h4 className="font-semibold text-sm text-foreground mb-1">Generate Jadwal Otomatis</h4>
             <p className="text-xs text-muted-foreground">
-              AI akan membuat jadwal berdasarkan lokasi, budget, cuaca, dan kepadatan
+              AI akan membuat jadwal berdasarkan lokasi, tanggal, budget, cuaca, dan event lokal
             </p>
           </div>
+
+          {!hasDate && (
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-xs text-destructive">
+                Masukkan <strong>tanggal</strong> hari ini terlebih dahulu. Tanggal diperlukan untuk mempertimbangkan hari besar, event lokal, dan kepadatan wisata.
+              </p>
+            </div>
+          )}
+
+          {!hasLocation && (
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-destructive/10 border border-destructive/20">
+              <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-xs text-destructive">
+                Masukkan <strong>lokasi</strong> hari ini terlebih dahulu.
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-2">
             <div className="flex-1">
@@ -130,13 +148,9 @@ const SmartGeneratePopover = ({
             </div>
           </div>
 
-          {!dayLocation && (
-            <p className="text-xs text-destructive">⚠️ Masukkan lokasi hari ini terlebih dahulu</p>
-          )}
-
           <Button
             onClick={handleGenerate}
-            disabled={loading || !dayLocation}
+            disabled={loading || !canGenerate}
             className="w-full"
             size="sm"
           >
