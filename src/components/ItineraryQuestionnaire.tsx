@@ -11,6 +11,9 @@ interface StepConfig {
   otherField?: string;
   options: string[];
   allowOther: boolean;
+  isNumeric?: boolean;
+  placeholder?: string;
+  prefix?: string;
 }
 
 const steps: StepConfig[] = [
