@@ -2,7 +2,12 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowRight, ArrowLeft, Loader2, MapPin } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowRight, ArrowLeft, CalendarIcon, MapPin } from "lucide-react";
+import { format } from "date-fns";
+import { id as idLocale } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import tripsyLogo from "@/assets/tripsy-logo.png";
 
 interface StepConfig {
@@ -12,6 +17,7 @@ interface StepConfig {
   options: string[];
   allowOther: boolean;
   isNumeric?: boolean;
+  isDate?: boolean;
   placeholder?: string;
   prefix?: string;
 }
@@ -54,6 +60,13 @@ const steps: StepConfig[] = [
     options: ["1 hari", "2–3 hari", "4–5 hari", "1 minggu"],
     allowOther: true,
   },
+  {
+    question: "Kapan tanggal keberangkatan Anda?",
+    field: "departure_date",
+    options: [],
+    allowOther: false,
+    isDate: true,
+  },
 ];
 
 export interface ItineraryPreferences {
@@ -67,6 +80,7 @@ export interface ItineraryPreferences {
   budget: number;
   duration: string;
   duration_other?: string;
+  departure_date: string;
 }
 
 interface Props {
@@ -81,6 +95,7 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [otherInputs, setOtherInputs] = useState<Record<string, string>>({});
   const [isOther, setIsOther] = useState<Record<string, boolean>>({});
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const completeRef = useRef<() => void>(() => {});
 
   const step = steps[currentStep];
@@ -90,14 +105,18 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
   const otherValue = otherInputs[step.field] || "";
   const canProceed = step.isNumeric
     ? Number(answers[step.field]) > 0
-    : isOtherSelected
-      ? otherValue.trim().length > 0
-      : selectedValue.length > 0;
+    : step.isDate
+      ? !!selectedDate
+      : isOtherSelected
+        ? otherValue.trim().length > 0
+        : selectedValue.length > 0;
 
   const buildPreferences = useCallback((): ItineraryPreferences => {
     const prefs: any = { destination };
     for (const s of steps) {
-      if (isOther[s.field] && s.otherField) {
+      if (s.isDate) {
+        prefs[s.field] = answers[s.field] || "";
+      } else if (isOther[s.field] && s.otherField) {
         prefs[s.field] = "Lainnya";
         prefs[s.otherField] = otherInputs[s.field] || "";
       } else {
@@ -154,6 +173,14 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
       setCurrentStep((prev) => prev - 1);
     } else {
       setShowDestination(true);
+    }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date) {
+      const dateStr = format(date, "yyyy-MM-dd");
+      setAnswers((prev) => ({ ...prev, [step.field]: dateStr }));
     }
   };
 
@@ -220,7 +247,41 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
       </h2>
 
       <div className="space-y-3 mb-6">
-        {step.isNumeric ? (
+        {step.isDate ? (
+          <div className="flex flex-col items-center gap-4">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal h-12 text-base",
+                    !selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-5 w-5" />
+                  {selectedDate
+                    ? format(selectedDate, "EEEE, dd MMMM yyyy", { locale: idLocale })
+                    : "Pilih tanggal keberangkatan"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="center">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={handleDateSelect}
+                  disabled={(date) => date < new Date()}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            {selectedDate && (
+              <p className="text-sm text-muted-foreground">
+                📅 Keberangkatan: {format(selectedDate, "dd MMMM yyyy", { locale: idLocale })}
+              </p>
+            )}
+          </div>
+        ) : step.isNumeric ? (
           <div className="flex items-center gap-2">
             <span className="text-lg font-medium text-foreground shrink-0">{step.prefix}</span>
             <Input
@@ -297,7 +358,7 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
         <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="h-4 w-4 mr-1" /> Kembali
         </Button>
-        {(isOtherSelected || step.isNumeric) && (
+        {(isOtherSelected || step.isNumeric || step.isDate) && (
           <Button onClick={handleNext} disabled={!canProceed}>
             {currentStep === totalSteps - 1 ? "Buat Itinerary" : "Lanjut"}
             {currentStep < totalSteps - 1 && <ArrowRight className="h-4 w-4 ml-1" />}
