@@ -216,51 +216,76 @@ const ItineraryQuestionnaire = ({ onComplete, onBack }: Props) => {
       </h2>
 
       <div className="space-y-3 mb-6">
-        {step.options.map((option) => (
-          <button
-            key={option}
-            onClick={() => handleSelect(option)}
-            className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
-              selectedValue === option && !isOtherSelected
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-foreground hover:border-primary/50 hover:bg-muted/50"
-            }`}
-          >
-            {option}
-          </button>
-        ))}
-
-        {step.allowOther && (
-          <div>
-            <button
-              onClick={handleSelectOther}
-              className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
-                isOtherSelected
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-foreground hover:border-primary/50 hover:bg-muted/50"
-              }`}
-            >
-              Lainnya
-            </button>
-            {isOtherSelected && (
-              <Input
-                className="mt-2"
-                placeholder="Tulis jawaban Anda..."
-                value={otherValue}
-                onChange={(e) =>
-                  setOtherInputs((prev) => ({ ...prev, [step.field]: e.target.value }))
+        {step.isNumeric ? (
+          <div className="flex items-center gap-2">
+            <span className="text-lg font-medium text-foreground shrink-0">{step.prefix}</span>
+            <Input
+              type="number"
+              placeholder={step.placeholder}
+              value={answers[step.field] || ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setAnswers((prev) => ({ ...prev, [step.field]: value }));
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && answers[step.field]?.trim()) {
+                  e.preventDefault();
+                  handleNext();
                 }
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && otherValue.trim()) {
-                    e.preventDefault();
-                    handleNext();
-                  }
-                }}
-                maxLength={200}
-                autoFocus
-              />
-            )}
+              }}
+              autoFocus
+              className="text-lg"
+            />
           </div>
+        ) : (
+          <>
+            {step.options.map((option) => (
+              <button
+                key={option}
+                onClick={() => handleSelect(option)}
+                className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
+                  selectedValue === option && !isOtherSelected
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-foreground hover:border-primary/50 hover:bg-muted/50"
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+
+            {step.allowOther && (
+              <div>
+                <button
+                  onClick={handleSelectOther}
+                  className={`w-full text-left px-4 py-3 rounded-lg border text-sm font-medium transition-all ${
+                    isOtherSelected
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-foreground hover:border-primary/50 hover:bg-muted/50"
+                  }`}
+                >
+                  Lainnya
+                </button>
+                {isOtherSelected && (
+                  <Input
+                    className="mt-2"
+                    placeholder="Tulis jawaban Anda..."
+                    value={otherValue}
+                    onChange={(e) =>
+                      setOtherInputs((prev) => ({ ...prev, [step.field]: e.target.value }))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && otherValue.trim()) {
+                        e.preventDefault();
+                        handleNext();
+                      }
+                    }}
+                    maxLength={200}
+                    autoFocus
+                  />
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 
