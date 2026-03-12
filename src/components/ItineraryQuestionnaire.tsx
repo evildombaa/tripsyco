@@ -64,7 +64,7 @@ export interface ItineraryPreferences {
   travel_companion_other?: string;
   travel_style: string;
   travel_style_other?: string;
-  budget: string;
+  budget: number;
   duration: string;
   duration_other?: string;
 }
