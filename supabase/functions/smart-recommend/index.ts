@@ -87,6 +87,10 @@ Pertimbangkan waktu saat ini dan jarak dari lokasi terakhir.`;
       modeInstruction = `User menghabiskan waktu lebih lama dari perkiraan. Sesuaikan jadwal berikutnya.
 Aktivitas yang sudah ada:\n${existingList}\n
 Reorganisasi sisa hari dengan mempertimbangkan waktu yang tersisa.`;
+    } else if (mode === "suggestions") {
+      modeInstruction = `Berikan 5-8 pilihan aktivitas dan tempat yang bisa dilakukan di ${searchLocation}${search_query ? ` yang terkait dengan "${search_query}"` : ""}.
+Untuk setiap rekomendasi, berikan kategori (wisata/kuliner/hiburan/belanja).
+Urutkan berdasarkan rating dan popularitas.`;
     }
 
     const prompt = `Kamu adalah travel planner profesional Indonesia yang sangat detail.
