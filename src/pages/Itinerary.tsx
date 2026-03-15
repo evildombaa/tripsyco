@@ -397,38 +397,42 @@ const Itinerary = () => {
           )}
 
           {mode === "choose" && (
-            <div className="max-w-2xl mx-auto text-center">
-              <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-3">Buat Itinerary Baru</h1>
-              <p className="text-muted-foreground mb-10">Pilih cara membuat rencana perjalananmu</p>
-              <div className="grid sm:grid-cols-2 gap-6">
-                <Card
-                  className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+            <div className="max-w-2xl mx-auto text-center animate-fade-in">
+              <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Mulai</p>
+              <h1 className="text-3xl md:text-5xl font-extrabold font-serif text-foreground mb-3">Buat Itinerary Baru</h1>
+              <p className="text-muted-foreground mb-12 text-lg">Pilih cara membuat rencana perjalananmu</p>
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div
+                  className="bg-card rounded-2xl border border-border/50 p-8 cursor-pointer hover:border-primary/40 hover-lift shadow-sm group"
                   onClick={handleManual}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <div className="flex flex-col items-center gap-5">
+                    <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                       <PenLine className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">Buat Manual</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-lg font-bold text-foreground">Buat Manual</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       Susun sendiri aktivitas, waktu, dan lokasi perjalananmu
                     </p>
                   </div>
-                </Card>
-                <Card
-                  className="p-8 border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
+                </div>
+                <div
+                  className="bg-card rounded-2xl border border-border/50 p-8 cursor-pointer hover:border-primary/40 hover-lift shadow-sm group relative overflow-hidden"
                   onClick={() => setMode("ai-questionnaire")}
                 >
-                  <div className="flex flex-col items-center gap-4">
-                    <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                  <div className="absolute top-3 right-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider gradient-primary text-primary-foreground px-2.5 py-1 rounded-full">AI</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-5">
+                    <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                       <Sparkles className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
                     </div>
-                    <h3 className="text-lg font-semibold text-foreground">Buat Otomatis</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="text-lg font-bold text-foreground">Buat Otomatis</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
                       Jawab beberapa pertanyaan, AI akan buatkan itinerary untukmu
                     </p>
                   </div>
-                </Card>
+                </div>
               </div>
             </div>
           )}
