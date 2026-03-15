@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Plus, Trash2, Wallet, UtensilsCrossed, Car, Hotel, ShoppingBag, Ticket } from "lucide-react";
+import { Plus, Trash2, Wallet, UtensilsCrossed, Car, Hotel, ShoppingBag, Ticket, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Navbar from "@/components/Navbar";
@@ -67,46 +66,62 @@ const Expenses = () => {
       <Navbar />
       <div className="pt-24 pb-20">
         <div className="container mx-auto px-4 max-w-3xl">
-          <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-2">Pengeluaran</h1>
-          <p className="text-muted-foreground mb-8">Lacak biaya perjalananmu agar tetap terkontrol.</p>
+          <div className="mb-10">
+            <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Tracking</p>
+            <h1 className="text-3xl md:text-5xl font-extrabold font-serif text-foreground mb-2">Pengeluaran</h1>
+            <p className="text-muted-foreground">Lacak biaya perjalananmu agar tetap terkontrol.</p>
+          </div>
 
-          <Card className="p-6 mb-6 bg-primary text-primary-foreground border-0">
-            <p className="text-sm opacity-80 mb-1">Total Pengeluaran</p>
-            <p className="text-3xl font-bold font-mono">{formatCurrency(total)}</p>
-          </Card>
+          {/* Total Card */}
+          <div className="rounded-2xl gradient-primary p-6 mb-8 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-primary-foreground/70 font-medium mb-1">Total Pengeluaran</p>
+                <p className="text-3xl md:text-4xl font-bold font-mono text-primary-foreground">{formatCurrency(total)}</p>
+              </div>
+              <div className="h-12 w-12 rounded-xl bg-primary-foreground/10 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-primary-foreground" />
+              </div>
+            </div>
+          </div>
 
+          {/* Category breakdown */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
             {Object.entries(byCategory).map(([cat, amount]) => {
               const Icon = categoryIcons[cat] || Wallet;
               return (
-                <Card key={cat} className="p-4 border-border/50">
+                <div key={cat} className="bg-card rounded-xl border border-border/50 p-4 hover-lift">
                   <div className="flex items-center gap-2 mb-2">
-                    <Icon className="h-4 w-4 text-primary" />
-                    <span className="text-sm text-muted-foreground">{cat}</span>
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <span className="text-sm text-muted-foreground font-medium">{cat}</span>
                   </div>
-                  <p className="font-semibold text-foreground text-sm">{formatCurrency(amount)}</p>
-                </Card>
+                  <p className="font-bold text-foreground">{formatCurrency(amount)}</p>
+                </div>
               );
             })}
           </div>
 
-          <Card className="p-4 mb-6 border-border/50">
+          {/* Add expense form */}
+          <div className="bg-card rounded-2xl border border-border/50 p-5 mb-8 shadow-sm">
+            <p className="text-sm font-semibold text-foreground mb-3">Tambah Pengeluaran</p>
             <div className="flex flex-col sm:flex-row gap-3">
               <Input
                 placeholder="Deskripsi"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
-                className="flex-1"
+                className="flex-1 h-11"
               />
               <Input
                 type="number"
                 placeholder="Jumlah (Rp)"
                 value={newAmount}
                 onChange={(e) => setNewAmount(e.target.value)}
-                className="w-full sm:w-36"
+                className="w-full sm:w-36 h-11"
               />
               <Select value={newCategory} onValueChange={setNewCategory}>
-                <SelectTrigger className="w-full sm:w-36">
+                <SelectTrigger className="w-full sm:w-36 h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -115,32 +130,36 @@ const Expenses = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <Button onClick={addExpense}>
+              <Button onClick={addExpense} className="h-11 gradient-primary border-0 shadow-sm">
                 <Plus className="h-4 w-4 mr-1" /> Tambah
               </Button>
             </div>
-          </Card>
+          </div>
 
+          {/* Expense list */}
           <div className="space-y-2">
             {expenses.map((expense) => {
               const Icon = categoryIcons[expense.category] || Wallet;
               return (
-                <Card key={expense.id} className="p-4 border-border/50 flex items-center gap-4 group">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <div
+                  key={expense.id}
+                  className="bg-card rounded-xl border border-border/50 p-4 flex items-center gap-4 group hover:shadow-sm transition-shadow"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
                     <Icon className="h-5 w-5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground text-sm truncate">{expense.description}</p>
-                    <p className="text-xs text-muted-foreground">{expense.category} · {expense.date}</p>
+                    <p className="font-semibold text-foreground text-sm truncate">{expense.description}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{expense.category} · {expense.date}</p>
                   </div>
-                  <p className="font-semibold text-foreground text-sm shrink-0">{formatCurrency(expense.amount)}</p>
+                  <p className="font-bold text-foreground text-sm shrink-0">{formatCurrency(expense.amount)}</p>
                   <button
                     onClick={() => removeExpense(expense.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive shrink-0"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive p-1.5 rounded-lg hover:bg-destructive/10 shrink-0"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
-                </Card>
+                </div>
               );
             })}
           </div>

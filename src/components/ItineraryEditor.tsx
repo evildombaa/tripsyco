@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Plus, Calendar, MapPin, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import BudgetInput from "@/components/itinerary/BudgetInput";
@@ -114,17 +113,17 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex-1">
           <input
             value={tripName}
             onChange={(e) => setTripName(e.target.value)}
-            className="text-3xl md:text-4xl font-bold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors w-full"
+            className="text-3xl md:text-4xl font-extrabold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors w-full"
           />
-          <p className="text-muted-foreground text-sm mt-1">Susun rencana perjalananmu di sini</p>
+          <p className="text-muted-foreground text-sm mt-1.5">Susun rencana perjalananmu di sini</p>
         </div>
         {onSave && (
-          <Button onClick={onSave} disabled={saving} className="ml-4 shrink-0">
+          <Button onClick={onSave} disabled={saving} className="ml-4 shrink-0 gradient-primary border-0 shadow-md hover:shadow-lg transition-all">
             {saving ? "Menyimpan..." : "Simpan"}
           </Button>
         )}
@@ -135,26 +134,31 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
 
       {/* Days with DnD */}
       <DragDropContext onDragEnd={onDragEnd}>
-        <div className="space-y-6">
+        <div className="space-y-5">
           {days.map((day, dayIndex) => (
-            <Card key={day.id} className="p-6 border-border/50">
+            <div key={day.id} className="bg-card rounded-2xl border border-border/50 p-6 shadow-sm">
               {/* Day header */}
-              <div className="flex items-center gap-3 mb-3">
-                <Calendar className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold text-foreground">Hari {dayIndex + 1}</h3>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-9 w-9 rounded-xl gradient-primary flex items-center justify-center shadow-sm">
+                  <Calendar className="h-4 w-4 text-primary-foreground" />
+                </div>
+                <h3 className="font-bold text-foreground text-lg">Hari {dayIndex + 1}</h3>
                 <Input
                   type="date"
                   value={day.date}
                   onChange={(e) => setDays(days.map((d) => (d.id === day.id ? { ...d, date: e.target.value } : d)))}
-                  className="w-auto ml-auto text-sm h-8"
+                  className="w-auto ml-auto text-sm h-9 rounded-lg"
                 />
-                <button onClick={() => removeDay(day.id)} className="text-destructive hover:text-destructive/80">
+                <button
+                  onClick={() => removeDay(day.id)}
+                  className="text-muted-foreground hover:text-destructive p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
+                >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
 
               {/* Day location */}
-              <div className="flex items-center gap-2 mb-4 bg-muted/20 rounded-lg p-3 border border-border/30">
+              <div className="flex items-center gap-2 mb-4 bg-muted/40 rounded-xl p-3 border border-border/30">
                 <MapPin className="h-4 w-4 text-primary shrink-0" />
                 <Input
                   placeholder="Lokasi hari ini (contoh: Kuta, Bali)"
@@ -178,7 +182,7 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`space-y-2 min-h-[40px] rounded-lg transition-colors ${
+                    className={`space-y-2 min-h-[40px] rounded-xl transition-colors p-1 ${
                       snapshot.isDraggingOver ? "bg-primary/5 ring-1 ring-primary/20" : ""
                     }`}
                   >
@@ -189,7 +193,7 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
                             ref={dragProvided.innerRef}
                             {...dragProvided.draggableProps}
                             {...dragProvided.dragHandleProps}
-                            className={`${dragSnapshot.isDragging ? "opacity-80 shadow-lg" : ""}`}
+                            className={`${dragSnapshot.isDragging ? "opacity-80 shadow-xl rounded-xl" : ""}`}
                           >
                             <ActivityCard
                               item={item}
@@ -206,15 +210,15 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
                 )}
               </Droppable>
 
-              <Button variant="ghost" size="sm" className="mt-3" onClick={() => setAddDialogDayId(day.id)}>
+              <Button variant="ghost" size="sm" className="mt-3 text-muted-foreground hover:text-primary" onClick={() => setAddDialogDayId(day.id)}>
                 <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
               </Button>
-            </Card>
+            </div>
           ))}
         </div>
       </DragDropContext>
 
-      <Button variant="outline" className="mt-6 w-full" onClick={addDay}>
+      <Button variant="outline" className="mt-6 w-full rounded-xl h-12 border-dashed border-2 text-muted-foreground hover:text-primary hover:border-primary/40" onClick={addDay}>
         <Plus className="h-4 w-4 mr-2" /> Tambah Hari
       </Button>
 

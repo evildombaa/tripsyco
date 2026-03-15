@@ -60,10 +60,13 @@ const Explore = () => {
       <Navbar />
       <div className="pt-24 pb-20">
         <div className="container mx-auto px-4">
-          <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground mb-6">Jelajahi Destinasi</h1>
+          <div className="mb-10">
+            <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Discover</p>
+            <h1 className="text-3xl md:text-5xl font-extrabold font-serif text-foreground">Jelajahi Destinasi</h1>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-card rounded-xl border border-border">
+            <div className="flex-1 flex items-center gap-3 px-5 py-3.5 bg-card rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow">
               <Search className="h-5 w-5 text-muted-foreground" />
               <input
                 type="text"
@@ -78,12 +81,16 @@ const Explore = () => {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 mb-8">
+          <div className="flex flex-wrap gap-2 mb-10">
             {categories.map((cat) => (
               <Badge
                 key={cat}
                 variant={activeCategory === cat ? "default" : "outline"}
-                className="cursor-pointer px-4 py-1.5"
+                className={`cursor-pointer px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  activeCategory === cat
+                    ? "gradient-primary border-0 text-primary-foreground shadow-sm"
+                    : "hover:bg-muted"
+                }`}
                 onClick={() => setActiveCategory(cat)}
               >
                 {cat}
@@ -92,18 +99,19 @@ const Explore = () => {
           </div>
 
           {loading ? (
-            <div className="flex justify-center py-20">
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">Mencari destinasi...</p>
             </div>
           ) : places.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in">
               {places.map((place, idx) => (
                 <DestinationCard key={`${place.name}-${idx}`} {...place} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-20">
-              <p className="text-muted-foreground">Tidak ada destinasi yang ditemukan.</p>
+            <div className="text-center py-24">
+              <p className="text-muted-foreground text-lg">Tidak ada destinasi yang ditemukan.</p>
             </div>
           )}
         </div>
