@@ -442,10 +442,12 @@ const Itinerary = () => {
           )}
 
           {mode === "ai-generating" && (
-            <div className="max-w-lg mx-auto text-center py-20">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-6" />
-              <h2 className="text-xl font-bold font-serif text-foreground mb-2">Sedang membuat itinerary...</h2>
-              <p className="text-muted-foreground text-sm">
+            <div className="max-w-lg mx-auto text-center py-24 animate-fade-in">
+              <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-8 shadow-lg animate-pulse-soft">
+                <Sparkles className="h-8 w-8 text-primary-foreground" />
+              </div>
+              <h2 className="text-2xl font-bold font-serif text-foreground mb-3">Sedang membuat itinerary...</h2>
+              <p className="text-muted-foreground">
                 AI sedang merangkai rencana perjalanan terbaik untukmu.
               </p>
             </div>
