@@ -134,9 +134,7 @@ const Itinerary = () => {
     setMode("manual");
     toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
-
-
-
+  const handleSave = async () => {
     if (!user) return;
     if (budget <= 0) {
       toast({ title: "Masukkan budget terlebih dahulu!", variant: "destructive" });
