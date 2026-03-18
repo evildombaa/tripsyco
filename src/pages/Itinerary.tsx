@@ -402,8 +402,7 @@ const Itinerary = () => {
             </div>
           )}
 
-
-
+          {(mode === "manual" || mode === "editor") && (
             <>
               <ItineraryEditor
                 tripName={tripName}
@@ -423,8 +422,6 @@ const Itinerary = () => {
               </div>
             </>
           )}
-
-          {mode === "feedback" && itineraryId && (
             <ItineraryFeedback itineraryId={itineraryId} onDone={handleFeedbackDone} />
           )}
         </div>
