@@ -422,6 +422,7 @@ const Itinerary = () => {
               </div>
             </>
           )}
+          {mode === "feedback" && itineraryId && (
             <ItineraryFeedback itineraryId={itineraryId} onDone={handleFeedbackDone} />
           )}
         </div>
