@@ -91,7 +91,12 @@ const Itinerary = () => {
           return;
         }
       }
-      setMode("choose");
+      // No existing itinerary — go directly to manual editor
+      setItineraryId(null);
+      setTripName("Perjalanan Baru");
+      setBudget(0);
+      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      setMode("manual");
     };
     load();
   }, [user]);
