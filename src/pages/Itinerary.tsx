@@ -1,19 +1,17 @@
 import { useState, useEffect } from "react";
-import { Sparkles, PenLine, Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ItineraryEditor, { DayPlan } from "@/components/ItineraryEditor";
-import ItineraryQuestionnaire, { ItineraryPreferences } from "@/components/ItineraryQuestionnaire";
 import ItineraryFeedback from "@/components/ItineraryFeedback";
 import ItineraryChatbot from "@/components/itinerary/ItineraryChatbot";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import type { EnhancedItem } from "@/components/itinerary/ActivityCard";
 
-type Mode = "loading" | "choose" | "manual" | "ai-questionnaire" | "ai-generating" | "editor" | "feedback";
+
+type Mode = "loading" | "manual" | "editor" | "feedback";
 
 const Itinerary = () => {
   const [mode, setMode] = useState<Mode>("loading");
@@ -91,7 +89,12 @@ const Itinerary = () => {
           return;
         }
       }
-      setMode("choose");
+      // No existing itinerary — go directly to manual editor
+      setItineraryId(null);
+      setTripName("Perjalanan Baru");
+      setBudget(0);
+      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      setMode("manual");
     };
     load();
   }, [user]);
@@ -127,164 +130,10 @@ const Itinerary = () => {
     setTripName("Perjalanan Baru");
     setBudget(0);
     setDays([]);
-    setMode("choose");
+    setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+    setMode("manual");
     toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
-
-  const handleAIComplete = async (prefs: ItineraryPreferences) => {
-    setMode("ai-generating");
-    setDestination(prefs.destination);
-    try {
-      const { data: itin, error: itinErr } = await supabase
-        .from("itineraries")
-        .insert({ user_id: user!.id, trip_name: `Perjalanan ke ${prefs.destination}`, budget: 0 } as any)
-        .select()
-        .single();
-      if (itinErr) throw itinErr;
-      setItineraryId(itin.id);
-
-      await supabase.from("itinerary_preferences" as any).insert({
-        itinerary_id: itin.id,
-        destination: prefs.destination,
-        travel_purpose: prefs.travel_purpose,
-        travel_purpose_other: prefs.travel_purpose_other || null,
-        travel_companion: prefs.travel_companion,
-        travel_companion_other: prefs.travel_companion_other || null,
-        travel_style: prefs.travel_style,
-        travel_style_other: prefs.travel_style_other || null,
-        budget: String(prefs.budget),
-        duration: prefs.duration,
-        duration_other: prefs.duration_other || null,
-      } as any);
-
-      const { data: feedbackData } = await supabase
-        .from("itinerary_feedback" as any)
-        .select("rating, feedback_text, suggestions")
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-itinerary`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            preferences: {
-              destination: prefs.destination,
-              travel_purpose: prefs.travel_purpose_other || prefs.travel_purpose,
-              travel_companion: prefs.travel_companion_other || prefs.travel_companion,
-              travel_style: prefs.travel_style_other || prefs.travel_style,
-              budget: prefs.budget,
-              duration: prefs.duration_other || prefs.duration,
-              departure_date: prefs.departure_date,
-            },
-            feedback: (feedbackData || []).map((f: any) => ({
-              rating: f.rating,
-              feedback: f.feedback_text,
-              suggestions: f.suggestions,
-            })),
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || "Gagal generate itinerary");
-      }
-
-      const { itinerary } = await res.json();
-      setTripName(itinerary.trip_name || `Perjalanan ke ${prefs.destination}`);
-      setBudget(Number(prefs.budget) || 0);
-
-      // Calculate dates from departure_date
-      const departureDate = prefs.departure_date ? new Date(prefs.departure_date) : null;
-
-      const generatedDays: DayPlan[] = [];
-      for (let i = 0; i < itinerary.days.length; i++) {
-        const dayData = itinerary.days[i];
-        
-        // Use date from AI response or calculate from departure
-        let tripDate: string | null = dayData.date || null;
-        if (!tripDate && departureDate) {
-          const d = new Date(departureDate);
-          d.setDate(d.getDate() + i);
-          tripDate = d.toISOString().split("T")[0];
-        }
-
-        const { data: dayRow, error: dayErr } = await supabase
-          .from("itinerary_days")
-          .insert({
-            itinerary_id: itin.id,
-            sort_order: i,
-            trip_date: tripDate,
-            location: prefs.destination,
-          } as any)
-          .select()
-          .single();
-        if (dayErr) throw dayErr;
-
-        const items = dayData.items || [];
-        const localItems: EnhancedItem[] = [];
-        for (let j = 0; j < items.length; j++) {
-          const item = items[j];
-          const { data: itemRow, error: itemErr } = await supabase
-            .from("itinerary_day_items")
-            .insert({
-              day_id: dayRow.id,
-              time_slot: item.time || "",
-              activity: item.activity || "",
-              location: item.location || "",
-              sort_order: j,
-              status: item.status || "want",
-              description: item.description || "",
-              image_url: item.photo_url || null,
-              rating: item.rating || null,
-              place_id: item.place_id || null,
-              estimated_cost: item.estimated_cost || 0,
-            } as any)
-            .select()
-            .single();
-          if (itemErr) throw itemErr;
-          const row = itemRow as any;
-          localItems.push({
-            id: row.id,
-            time: row.time_slot,
-            activity: row.activity,
-            location: row.location,
-            status: row.status || "want",
-            description: row.description || "",
-            image_url: row.image_url || null,
-            rating: row.rating || null,
-            place_id: row.place_id || null,
-            estimated_cost: row.estimated_cost || 0,
-          });
-        }
-        generatedDays.push({
-          id: dayRow.id,
-          date: tripDate || "",
-          location: (dayRow as any).location || prefs.destination,
-          items: localItems,
-        });
-      }
-
-      await supabase
-        .from("itineraries")
-        .update({ trip_name: itinerary.trip_name || `Perjalanan ke ${prefs.destination}`, budget: Number(prefs.budget) || 0 })
-        .eq("id", itin.id);
-      setDays(generatedDays);
-      setMode("editor");
-      toast({ title: "Itinerary berhasil dibuat! 🎉", description: "Kamu bisa mengedit sesuai keinginan." });
-    } catch (error: any) {
-      console.error(error);
-      toast({ title: "Gagal membuat itinerary", description: error.message, variant: "destructive" });
-      setMode("choose");
-    }
-  };
-
   const handleSave = async () => {
     if (!user) return;
     if (budget <= 0) {
@@ -396,63 +245,6 @@ const Itinerary = () => {
             </div>
           )}
 
-          {mode === "choose" && (
-            <div className="max-w-2xl mx-auto text-center animate-fade-in">
-              <p className="text-sm font-semibold text-primary uppercase tracking-wider mb-2">Mulai</p>
-              <h1 className="text-3xl md:text-5xl font-extrabold font-serif text-foreground mb-3">Buat Itinerary Baru</h1>
-              <p className="text-muted-foreground mb-12 text-lg">Pilih cara membuat rencana perjalananmu</p>
-              <div className="grid sm:grid-cols-2 gap-5">
-                <div
-                  className="bg-card rounded-2xl border border-border/50 p-8 cursor-pointer hover:border-primary/40 hover-lift shadow-sm group"
-                  onClick={handleManual}
-                >
-                  <div className="flex flex-col items-center gap-5">
-                    <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <PenLine className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <h3 className="text-lg font-bold text-foreground">Buat Manual</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Susun sendiri aktivitas, waktu, dan lokasi perjalananmu
-                    </p>
-                  </div>
-                </div>
-                <div
-                  className="bg-card rounded-2xl border border-border/50 p-8 cursor-pointer hover:border-primary/40 hover-lift shadow-sm group relative overflow-hidden"
-                  onClick={() => setMode("ai-questionnaire")}
-                >
-                  <div className="absolute top-3 right-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider gradient-primary text-primary-foreground px-2.5 py-1 rounded-full">AI</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-5">
-                    <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                      <Sparkles className="h-7 w-7 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </div>
-                    <h3 className="text-lg font-bold text-foreground">Buat Otomatis</h3>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Jawab beberapa pertanyaan, AI akan buatkan itinerary untukmu
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {mode === "ai-questionnaire" && (
-            <ItineraryQuestionnaire onComplete={handleAIComplete} onBack={() => setMode("choose")} />
-          )}
-
-          {mode === "ai-generating" && (
-            <div className="max-w-lg mx-auto text-center py-24 animate-fade-in">
-              <div className="h-16 w-16 rounded-2xl gradient-primary flex items-center justify-center mx-auto mb-8 shadow-lg animate-pulse-soft">
-                <Sparkles className="h-8 w-8 text-primary-foreground" />
-              </div>
-              <h2 className="text-2xl font-bold font-serif text-foreground mb-3">Sedang membuat itinerary...</h2>
-              <p className="text-muted-foreground">
-                AI sedang merangkai rencana perjalanan terbaik untukmu.
-              </p>
-            </div>
-          )}
-
           {(mode === "manual" || mode === "editor") && (
             <>
               <ItineraryEditor
@@ -473,7 +265,6 @@ const Itinerary = () => {
               </div>
             </>
           )}
-
           {mode === "feedback" && itineraryId && (
             <ItineraryFeedback itineraryId={itineraryId} onDone={handleFeedbackDone} />
           )}
