@@ -287,7 +287,7 @@ const Itinerary = () => {
     } catch (error: any) {
       console.error(error);
       toast({ title: "Gagal membuat itinerary", description: error.message, variant: "destructive" });
-      setMode("choose");
+      setMode("manual");
     }
   };
 
