@@ -9,7 +9,7 @@ import ItineraryChatbot from "@/components/itinerary/ItineraryChatbot";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import type { EnhancedItem } from "@/components/itinerary/ActivityCard";
+
 
 type Mode = "loading" | "manual" | "editor" | "feedback";
 
