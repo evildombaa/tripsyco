@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
-import { Sparkles, PenLine, Loader2, CheckCircle } from "lucide-react";
+import { Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import ItineraryEditor, { DayPlan } from "@/components/ItineraryEditor";
-import ItineraryQuestionnaire, { ItineraryPreferences } from "@/components/ItineraryQuestionnaire";
 import ItineraryFeedback from "@/components/ItineraryFeedback";
 import ItineraryChatbot from "@/components/itinerary/ItineraryChatbot";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import type { EnhancedItem } from "@/components/itinerary/ActivityCard";
 
-type Mode = "loading" | "choose" | "manual" | "ai-questionnaire" | "ai-generating" | "editor" | "feedback";
+type Mode = "loading" | "manual" | "editor" | "feedback";
 
 const Itinerary = () => {
   const [mode, setMode] = useState<Mode>("loading");
