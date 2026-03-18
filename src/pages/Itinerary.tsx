@@ -132,7 +132,8 @@ const Itinerary = () => {
     setTripName("Perjalanan Baru");
     setBudget(0);
     setDays([]);
-    setMode("choose");
+    setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+    setMode("manual");
     toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
 
