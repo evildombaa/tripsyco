@@ -1,10 +1,8 @@
 import { useState, useMemo } from "react";
-import { Plus, MapPin, Trash2, CalendarDays, CalendarIcon } from "lucide-react";
+import { Plus, MapPin, Trash2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { format, addDays } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import BudgetInput from "@/components/itinerary/BudgetInput";
@@ -35,10 +33,9 @@ interface Props {
 }
 
 const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving }: Props) => {
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [selectedItem, setSelectedItem] = useState<{ dayId: string; item: EnhancedItem } | null>(null);
   const [addDialogDayId, setAddDialogDayId] = useState<string | null>(null);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   const { toast } = useToast();
 
   const totalEstimatedCost = days.reduce(
@@ -46,48 +43,31 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
     0
   );
 
-  // Derive departure date from first day
-  const departureDate = useMemo(() => {
-    if (days.length > 0 && days[0].date) {
-      return new Date(days[0].date + "T00:00:00");
-    }
-    return null;
-  }, [days]);
+  // Dates that have plans (for dot indicators)
+  const datesWithPlans = useMemo(() => days.filter((d) => d.date).map((d) => d.date), [days]);
 
-  const setDepartureDate = (date: Date | undefined) => {
-    if (!date) return;
-    // Update all days' dates based on departure
-    const updated = days.map((day, i) => {
-      const d = addDays(date, i);
-      return { ...day, date: format(d, "yyyy-MM-dd") };
-    });
-    setDays(updated);
-    setCalendarOpen(false);
+  // Find or create the day plan for selected date
+  const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+  const currentDay = days.find((d) => d.date === selectedDateStr);
+
+  const handleSelectDate = (date: Date) => {
+    setSelectedDate(date);
+    const dateStr = format(date, "yyyy-MM-dd");
+    // Auto-create day if it doesn't exist
+    if (!days.find((d) => d.date === dateStr)) {
+      setDays([...days, { id: Date.now().toString(), date: dateStr, location: "", items: [] }]);
+    }
   };
 
   const addDay = () => {
-    const newDate = departureDate ? format(addDays(departureDate, days.length), "yyyy-MM-dd") : "";
-    setDays([...days, { id: Date.now().toString(), date: newDate, location: "", items: [] }]);
-    // Select the newly added day
-    setTimeout(() => setSelectedDayIndex(days.length), 50);
+    // Add current selected date if no plan exists
+    if (!currentDay) {
+      handleSelectDate(selectedDate);
+    }
   };
 
   const removeDay = (dayId: string) => {
-    const idx = days.findIndex(d => d.id === dayId);
-    const newDays = days.filter((d) => d.id !== dayId);
-    // Recalculate dates for remaining days
-    if (departureDate && newDays.length > 0) {
-      const updated = newDays.map((day, i) => ({
-        ...day,
-        date: format(addDays(departureDate, i), "yyyy-MM-dd"),
-      }));
-      setDays(updated);
-    } else {
-      setDays(newDays);
-    }
-    if (selectedDayIndex >= newDays.length) {
-      setSelectedDayIndex(Math.max(0, newDays.length - 1));
-    }
+    setDays(days.filter((d) => d.id !== dayId));
   };
 
   const removeItem = (dayId: string, itemId: string) => {
@@ -144,21 +124,18 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
     setDays(newDays);
   };
 
-  // Current selected day
-  const currentDay = days[selectedDayIndex];
   const addDialogDay = days.find((d) => d.id === addDialogDayId);
 
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <input
             value={tripName}
             onChange={(e) => setTripName(e.target.value)}
-            className="text-3xl md:text-4xl font-extrabold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors w-full"
+            className="text-2xl md:text-3xl font-extrabold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors w-full truncate"
           />
-          <p className="text-muted-foreground text-sm mt-1.5">Susun rencana perjalananmu di sini</p>
         </div>
         {onSave && (
           <Button onClick={onSave} disabled={saving} className="ml-4 shrink-0 gradient-primary border-0 shadow-md hover:shadow-lg transition-all">
@@ -167,84 +144,34 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
         )}
       </div>
 
-      {/* Trip setup row: departure date + budget */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        {/* Departure date picker */}
-        <div className="flex-1">
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-start text-left font-normal h-12 rounded-xl border-border/50"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
-                {departureDate ? (
-                  <span className="text-foreground">
-                    Berangkat: <strong>{format(departureDate, "d MMMM yyyy", { locale: localeId })}</strong>
-                  </span>
-                ) : (
-                  <span className="text-muted-foreground">Pilih tanggal keberangkatan</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={departureDate || undefined}
-                onSelect={setDepartureDate}
-                initialFocus
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-        {/* Budget */}
-        <div className="flex-1">
-          <BudgetInput budget={budget} setBudget={setBudget} totalEstimatedCost={totalEstimatedCost} />
-        </div>
+      {/* Budget */}
+      <div className="mb-6">
+        <BudgetInput budget={budget} setBudget={setBudget} totalEstimatedCost={totalEstimatedCost} />
       </div>
 
       {/* Date Strip */}
       <div className="mb-6">
         <DateStrip
-          departureDate={departureDate}
-          totalDays={days.length}
-          selectedDayIndex={selectedDayIndex}
-          onSelectDay={setSelectedDayIndex}
+          selectedDate={selectedDate}
+          onSelectDate={handleSelectDate}
+          datesWithPlans={datesWithPlans}
           onAddDay={addDay}
         />
+      </div>
+
+      {/* Section title */}
+      <div className="mb-4">
+        <h3 className="text-xl font-bold font-serif text-foreground">Rencana Hari Ini</h3>
+        <p className="text-sm text-muted-foreground">
+          {format(selectedDate, "EEEE, d MMMM yyyy", { locale: localeId })}
+        </p>
       </div>
 
       {/* Selected day content */}
       {currentDay ? (
         <div className="animate-fade-in">
-          {/* Day title + actions */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl gradient-primary flex items-center justify-center shadow-sm">
-                <CalendarDays className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h3 className="font-bold text-foreground text-lg">Hari {selectedDayIndex + 1}</h3>
-                {currentDay.date && (
-                  <p className="text-xs text-muted-foreground">
-                    {format(new Date(currentDay.date + "T00:00:00"), "EEEE, d MMMM yyyy", { locale: localeId })}
-                  </p>
-                )}
-              </div>
-            </div>
-            {days.length > 1 && (
-              <button
-                onClick={() => removeDay(currentDay.id)}
-                className="text-muted-foreground hover:text-destructive p-2 rounded-lg hover:bg-destructive/10 transition-colors"
-                title="Hapus hari ini"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
           {/* Day location */}
-          <div className="flex items-center gap-2 mb-4 bg-muted/40 rounded-xl p-3 border border-border/30">
+          <div className="flex items-center gap-2 mb-4 bg-card rounded-xl p-3 border border-border/30">
             <MapPin className="h-4 w-4 text-primary shrink-0" />
             <Input
               placeholder="Lokasi hari ini (contoh: Kuta, Bali)"
@@ -276,7 +203,7 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
                   {currentDay.items.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                       <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
-                        <CalendarDays className="h-8 w-8 text-muted-foreground/50" />
+                        <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
                       </div>
                       <p className="font-semibold text-foreground mb-1">Belum ada rencana</p>
                       <p className="text-sm text-muted-foreground">
@@ -309,24 +236,38 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             </Droppable>
           </DragDropContext>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mt-3 text-muted-foreground hover:text-primary"
-            onClick={() => setAddDialogDayId(currentDay.id)}
-          >
-            <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
-          </Button>
+          <div className="flex items-center gap-2 mt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-primary"
+              onClick={() => setAddDialogDayId(currentDay.id)}
+            >
+              <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
+            </Button>
+            {currentDay.items.length === 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => removeDay(currentDay.id)}
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Hapus Hari
+              </Button>
+            )}
+          </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in">
           <div className="h-16 w-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
-            <CalendarDays className="h-8 w-8 text-muted-foreground/50" />
+            <CalendarDays className="h-8 w-8 text-muted-foreground/40" />
           </div>
           <p className="font-semibold text-foreground mb-1">Belum ada rencana</p>
-          <p className="text-sm text-muted-foreground mb-4">Tambahkan hari perjalanan untuk mulai</p>
-          <Button variant="outline" onClick={addDay} className="rounded-xl">
-            <Plus className="h-4 w-4 mr-2" /> Tambah Hari
+          <p className="text-sm text-muted-foreground mb-4">
+            Tambahkan destinasi dari halaman Jelajahi atau tekan +
+          </p>
+          <Button variant="outline" onClick={() => handleSelectDate(selectedDate)} className="rounded-xl">
+            <Plus className="h-4 w-4 mr-2" /> Tambah Rencana
           </Button>
         </div>
       )}
