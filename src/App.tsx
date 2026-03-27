@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Explore from "./pages/Explore";
+import DestinationDetail from "./pages/DestinationDetail";
 import Itinerary from "./pages/Itinerary";
 import Expenses from "./pages/Expenses";
 import Auth from "./pages/Auth";
