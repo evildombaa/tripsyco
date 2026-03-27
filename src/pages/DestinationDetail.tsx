@@ -75,11 +75,14 @@ const DestinationDetail = () => {
         body: { name, lat: parseFloat(lat), lng: parseFloat(lng) },
       });
 
-      if (!error && data && !data.error) {
+      const hasRealData = !error && data && !data.error && (data.address || data.photos?.length > 0 || data.reviews?.length > 0);
+      
+      if (hasRealData) {
         setDetails(data);
         setHeroPhoto(data.photos?.[0] || fallbackPhoto);
       } else {
-        // Fallback with basic info
+        // Use data from URL params as fallback
+        const mapsUrl = `https://www.google.com/maps/place/${encodeURIComponent(name)}/@${lat},${lng},17z`;
         setDetails({
           name,
           address: searchParams.get("address") || "",
@@ -89,7 +92,7 @@ const DestinationDetail = () => {
           photos: fallbackPhoto ? [fallbackPhoto] : [],
           reviews: [],
           website: null,
-          mapsUrl: null,
+          mapsUrl,
           openingHours: null,
           lat: parseFloat(lat),
           lng: parseFloat(lng),

@@ -19,11 +19,13 @@ serve(async (req) => {
 
   try {
     const { name, lat, lng } = await req.json();
+    console.log("Request:", { name, lat, lng });
 
     // Step 1: Find place using text search
     const findUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(name)}&inputtype=textquery&locationbias=point:${lat},${lng}&fields=place_id&key=${GOOGLE_MAPS_API_KEY}`;
     const findRes = await fetch(findUrl);
     const findData = await findRes.json();
+    console.log("Find place response:", JSON.stringify(findData));
 
     let placeId = findData.candidates?.[0]?.place_id;
 
@@ -35,23 +37,51 @@ serve(async (req) => {
       const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,rating,user_ratings_total,reviews,editorial_summary,photos,geometry,types,opening_hours,website,url&key=${GOOGLE_MAPS_API_KEY}`;
       const detailsRes = await fetch(detailsUrl);
       const detailsData = await detailsRes.json();
+      console.log("Details response status:", detailsData.status);
       details = detailsData.result;
 
-      // Build photo URLs (up to 6)
+      // Build photo URLs via proxy edge function
       if (details?.photos) {
         photos = details.photos.slice(0, 6).map(
           (p: any) =>
             `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${p.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
         );
       }
+    } else {
+      console.log("No place_id found, trying text search as fallback");
+      // Fallback: try textsearch
+      const textSearchUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(name)}&location=${lat},${lng}&radius=5000&key=${GOOGLE_MAPS_API_KEY}`;
+      const textRes = await fetch(textSearchUrl);
+      const textData = await textRes.json();
+      console.log("Text search response:", textData.status, "results:", textData.results?.length);
+      
+      if (textData.results?.[0]) {
+        placeId = textData.results[0].place_id;
+        // Get full details
+        const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,rating,user_ratings_total,reviews,editorial_summary,photos,geometry,types,opening_hours,website,url&key=${GOOGLE_MAPS_API_KEY}`;
+        const detailsRes = await fetch(detailsUrl);
+        const detailsData = await detailsRes.json();
+        details = detailsData.result;
+
+        if (details?.photos) {
+          photos = details.photos.slice(0, 6).map(
+            (p: any) =>
+              `https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=${p.photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+          );
+        }
+      }
     }
 
     // Step 3: Nearby hotels
     let nearbyHotels: any[] = [];
+    const searchLat = details?.geometry?.location?.lat || lat;
+    const searchLng = details?.geometry?.location?.lng || lng;
+
     try {
-      const hotelsUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=5000&type=lodging&key=${GOOGLE_MAPS_API_KEY}`;
+      const hotelsUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchLat},${searchLng}&radius=5000&type=lodging&key=${GOOGLE_MAPS_API_KEY}`;
       const hotelsRes = await fetch(hotelsUrl);
       const hotelsData = await hotelsRes.json();
+      console.log("Hotels response:", hotelsData.status, "count:", hotelsData.results?.length);
       nearbyHotels = (hotelsData.results || []).slice(0, 6).map((h: any) => ({
         name: h.name,
         address: h.vicinity || "",
@@ -70,11 +100,12 @@ serve(async (req) => {
     // Step 4: Nearby attractions
     let nearbyAttractions: any[] = [];
     try {
-      const attractionsUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=10000&type=tourist_attraction&key=${GOOGLE_MAPS_API_KEY}`;
+      const attractionsUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchLat},${searchLng}&radius=10000&type=tourist_attraction&key=${GOOGLE_MAPS_API_KEY}`;
       const attractionsRes = await fetch(attractionsUrl);
       const attractionsData = await attractionsRes.json();
+      console.log("Attractions response:", attractionsData.status, "count:", attractionsData.results?.length);
       nearbyAttractions = (attractionsData.results || [])
-        .filter((a: any) => a.name !== name)
+        .filter((a: any) => a.name !== (details?.name || name))
         .slice(0, 6)
         .map((a: any) => ({
           name: a.name,
