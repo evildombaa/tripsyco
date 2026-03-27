@@ -1,5 +1,6 @@
 import { MapPin, Star, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 interface DestinationCardProps {
   name: string;
@@ -22,15 +23,24 @@ const DestinationCard = ({
   lat,
   lng,
 }: DestinationCardProps) => {
-  const latNum = lat == null ? null : Number(lat);
-  const lngNum = lng == null ? null : Number(lng);
+  const navigate = useNavigate();
 
-  const mapsUrl = Number.isFinite(latNum) && Number.isFinite(lngNum)
-    ? `https://www.google.com/maps/place/${encodeURIComponent(name)}/@${latNum},${lngNum},17z`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${name}, ${address}`)}`;
+  const handleClick = () => {
+    const params = new URLSearchParams({
+      name,
+      address,
+      category,
+      ...(lat != null ? { lat: String(lat) } : {}),
+      ...(lng != null ? { lng: String(lng) } : {}),
+      ...(photoUrl ? { photo: photoUrl } : {}),
+      ...(rating ? { rating: String(rating) } : {}),
+      ...(userRatingsTotal ? { userRatingsTotal: String(userRatingsTotal) } : {}),
+    });
+    navigate(`/explore/detail?${params.toString()}`);
+  };
 
   return (
-    <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="group block">
+    <button onClick={handleClick} className="group block text-left w-full">
       <div className="rounded-2xl overflow-hidden bg-card border border-border/50 hover-lift shadow-sm">
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           <img
@@ -69,7 +79,7 @@ const DestinationCard = ({
           )}
         </div>
       </div>
-    </a>
+    </button>
   );
 };
 
