@@ -46,15 +46,12 @@ async function fetchWikipediaData(name: string) {
 
     const imageFiles = (imagesPage?.images || [])
       .map((img: any) => img.title as string)
-      .filter((title: string) =>
-        /\.(jpg|jpeg|png|webp)$/i.test(title) &&
-        !title.toLowerCase().includes("icon") &&
-        !title.toLowerCase().includes("logo") &&
-        !title.toLowerCase().includes("flag") &&
-        !title.toLowerCase().includes("commons") &&
-        !title.toLowerCase().includes("symbol") &&
-        !title.toLowerCase().includes("map")
-      )
+      .filter((title: string) => {
+        const lower = title.toLowerCase();
+        const hasValidExt = /\.(jpg|jpeg|png|webp)$/i.test(title);
+        const isBlacklisted = ["icon", "logo", "flag", "commons", "symbol", "map", "button", "arrow", "edit", "wikimedia", "wikidata"].some(kw => lower.includes(kw));
+        return hasValidExt && !isBlacklisted;
+      })
       .slice(0, 8);
 
     // Step 4: Get image URLs
