@@ -59,57 +59,8 @@ async function fetchWikipediaData(name: string) {
   }
 }
 
-// Use Overpass API (OpenStreetMap) to find nearby places
-async function fetchNearbyPlaces(lat: number, lng: number, type: "hotel" | "attraction") {
-  try {
-    let query = "";
-    if (type === "hotel") {
-      query = `
-        [out:json][timeout:10];
-        (
-          node["tourism"="hotel"](around:5000,${lat},${lng});
-          node["tourism"="guest_house"](around:5000,${lat},${lng});
-          node["tourism"="hostel"](around:5000,${lat},${lng});
-          way["tourism"="hotel"](around:5000,${lat},${lng});
-        );
-        out center 8;
-      `;
-    } else {
-      query = `
-        [out:json][timeout:10];
-        (
-          node["tourism"="attraction"](around:10000,${lat},${lng});
-          node["tourism"="viewpoint"](around:10000,${lat},${lng});
-          node["historic"](around:10000,${lat},${lng});
-          way["tourism"="attraction"](around:10000,${lat},${lng});
-        );
-        out center 8;
-      `;
-    }
 
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: `data=${encodeURIComponent(query)}`,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
-    const data = await res.json();
 
-    return (data.elements || [])
-      .filter((el: any) => el.tags?.name)
-      .slice(0, 6)
-      .map((el: any) => ({
-        name: el.tags.name,
-        address: [el.tags["addr:street"], el.tags["addr:city"]].filter(Boolean).join(", ") || "",
-        lat: el.lat || el.center?.lat,
-        lng: el.lon || el.center?.lon,
-        stars: el.tags.stars ? parseInt(el.tags.stars) : undefined,
-        website: el.tags.website || null,
-      }));
-  } catch (e) {
-    console.error(`Overpass ${type} error:`, e);
-    return [];
-  }
-}
 
 // Get Unsplash photos for a place
 async function fetchUnsplashPhotos(query: string): Promise<string[]> {
