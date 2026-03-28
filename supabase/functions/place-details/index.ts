@@ -67,7 +67,15 @@ async function fetchCommonsPhotos(name: string): Promise<string[]> {
 
     const fileNames = (searchData.query?.search || [])
       .map((r: any) => r.title as string)
-      .filter((t: string) => /\.(jpg|jpeg|png|webp)$/i.test(t))
+      .filter((t: string) => {
+        const lower = t.toLowerCase();
+        return /\.(jpg|jpeg|png|webp)$/i.test(t) &&
+          !lower.includes("map") &&
+          !lower.includes("logo") &&
+          !lower.includes("icon") &&
+          !lower.includes("flag") &&
+          !lower.includes("location");
+      })
       .slice(0, 6);
 
     if (fileNames.length === 0) return [];
