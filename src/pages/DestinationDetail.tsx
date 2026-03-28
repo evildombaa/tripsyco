@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, ExternalLink, Clock, Globe, Loader2, Hotel, Landmark, Plane } from "lucide-react";
+import { ArrowLeft, Star, MapPin, ExternalLink, Clock, Globe, Loader2, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -312,96 +312,10 @@ const DestinationDetail = () => {
           </div>
         </div>
 
-        <Separator />
-
-        {/* Nearby Hotels */}
-        {details.nearbyHotels.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-5">
-              <Hotel className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold text-foreground">Penginapan Terdekat</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {details.nearbyHotels.map((hotel, idx) => (
-                <NearbyCard key={idx} place={hotel} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Nearby Attractions */}
-        {details.nearbyAttractions.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-5">
-              <Landmark className="h-5 w-5 text-primary" />
-              <h2 className="text-xl font-bold text-foreground">Wisata Terdekat Lainnya</h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {details.nearbyAttractions.map((attraction, idx) => (
-                <NearbyCard key={idx} place={attraction} linkToDetail />
-              ))}
-            </div>
-          </section>
-        )}
       </div>
 
       <Footer />
     </div>
-  );
-};
-
-const NearbyCard = ({ place, linkToDetail }: { place: NearbyPlace; linkToDetail?: boolean }) => {
-  const navigate = useNavigate();
-
-  const mapsUrl = place.lat && place.lng
-    ? `https://www.google.com/maps/place/${encodeURIComponent(place.name)}/@${place.lat},${place.lng},17z`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)}`;
-
-  const handleClick = () => {
-    if (linkToDetail && place.lat && place.lng) {
-      const params = new URLSearchParams({
-        name: place.name,
-        lat: String(place.lat),
-        lng: String(place.lng),
-        address: place.address,
-        ...(place.photoUrl ? { photo: place.photoUrl } : {}),
-        ...(place.rating ? { rating: String(place.rating) } : {}),
-      });
-      navigate(`/explore/detail?${params.toString()}`);
-    } else {
-      window.open(mapsUrl, "_blank");
-    }
-  };
-
-  return (
-    <button onClick={handleClick} className="text-left group">
-      <Card className="overflow-hidden bg-card border-border/50 hover:shadow-md transition-shadow h-full">
-        <div className="aspect-[16/10] overflow-hidden bg-muted">
-          <img
-            src={place.photoUrl || "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80"}
-            alt={place.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            loading="lazy"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80";
-            }}
-          />
-        </div>
-        <CardContent className="p-3.5">
-          <h3 className="font-bold text-foreground text-sm line-clamp-1">{place.name}</h3>
-          <p className="text-xs text-muted-foreground line-clamp-1 mt-1">{place.address}</p>
-          {place.rating && (
-            <div className="flex items-center gap-1 mt-2">
-              <Star className="h-3 w-3 fill-primary text-primary" />
-              <span className="text-xs font-bold text-foreground">{place.rating}</span>
-              {place.userRatingsTotal && (
-                <span className="text-xs text-muted-foreground">({place.userRatingsTotal.toLocaleString()})</span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </button>
   );
 };
 

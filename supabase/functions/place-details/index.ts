@@ -6,18 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Search Wikipedia for a place and get its extract + images
+// Search Wikipedia for a place and get its extract + main image
 async function fetchWikipediaData(name: string) {
   try {
-    // Step 1: Search for the page
+    // Step 1: Search for the page in Indonesian Wikipedia
     const searchUrl = `https://id.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=3&format=json&origin=*`;
     const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
-    
+
     let pageTitle = searchData.query?.search?.[0]?.title;
-    
-    // If no result in Indonesian Wikipedia, try English
     let wikiLang = "id";
+
+    // Fallback to English Wikipedia
     if (!pageTitle) {
       const enSearchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=3&format=json&origin=*`;
       const enSearchRes = await fetch(enSearchUrl);
@@ -28,8 +28,8 @@ async function fetchWikipediaData(name: string) {
 
     if (!pageTitle) return null;
 
-    // Step 2: Get page extract and info
-    const detailUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts|pageimages|coordinates|info&exintro=true&explaintext=true&pithumbsize=800&inprop=url&format=json&origin=*`;
+    // Step 2: Get page extract, thumbnail, and coordinates
+    const detailUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=extracts|pageimages|coordinates|info&exintro=true&explaintext=true&pithumbsize=1200&inprop=url&format=json&origin=*`;
     const detailRes = await fetch(detailUrl);
     const detailData = await detailRes.json();
     const pages = detailData.query?.pages;
@@ -37,50 +37,18 @@ async function fetchWikipediaData(name: string) {
 
     if (!page || page.missing !== undefined) return null;
 
-    // Step 3: Get multiple images from the page
-    const imagesUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=images&imlimit=20&format=json&origin=*`;
-    const imagesRes = await fetch(imagesUrl);
-    const imagesData = await imagesRes.json();
-    const imagesPages = imagesData.query?.pages;
-    const imagesPage = imagesPages ? Object.values(imagesPages)[0] as any : null;
-
-    const imageFiles = (imagesPage?.images || [])
-      .map((img: any) => img.title as string)
-      .filter((title: string) => {
-        const lower = title.toLowerCase();
-        const hasValidExt = /\.(jpg|jpeg|png|webp)$/i.test(title);
-        const isBlacklisted = ["icon", "logo", "flag", "commons", "symbol", "map", "button", "arrow", "edit", "wikimedia", "wikidata"].some(kw => lower.includes(kw));
-        return hasValidExt && !isBlacklisted;
-      })
-      .slice(0, 8);
-
-    // Step 4: Get image URLs
+    // Get high-res thumbnail
     const photos: string[] = [];
-    if (page.thumbnail?.source) {
-      photos.push(page.thumbnail.source);
-    }
-
-    if (imageFiles.length > 0) {
-      const fileTitles = imageFiles.join("|");
-      const fileInfoUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(fileTitles)}&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*`;
-      const fileInfoRes = await fetch(fileInfoUrl);
-      const fileInfoData = await fileInfoRes.json();
-      const filePages = fileInfoData.query?.pages;
-      if (filePages) {
-        for (const fp of Object.values(filePages) as any[]) {
-          const thumbUrl = fp.imageinfo?.[0]?.thumburl || fp.imageinfo?.[0]?.url;
-          if (thumbUrl && !photos.includes(thumbUrl)) {
-            photos.push(thumbUrl);
-          }
-        }
-      }
+    if (page.thumbnail?.source && !page.thumbnail.source.includes(".svg")) {
+      const hiRes = page.thumbnail.source.replace(/\/\d+px-/, "/1200px-");
+      photos.push(hiRes);
     }
 
     return {
       title: page.title,
       extract: page.extract || null,
       url: page.fullurl || null,
-      photos: photos.slice(0, 6),
+      photos,
       coordinates: page.coordinates?.[0] || null,
       lang: wikiLang,
     };
@@ -90,70 +58,45 @@ async function fetchWikipediaData(name: string) {
   }
 }
 
-// Use Overpass API (OpenStreetMap) to find nearby places
-async function fetchNearbyPlaces(lat: number, lng: number, type: "hotel" | "attraction") {
+// Search Wikimedia Commons for photos of a place (free, no API key)
+async function fetchCommonsPhotos(name: string): Promise<string[]> {
   try {
-    let query = "";
-    if (type === "hotel") {
-      query = `
-        [out:json][timeout:10];
-        (
-          node["tourism"="hotel"](around:5000,${lat},${lng});
-          node["tourism"="guest_house"](around:5000,${lat},${lng});
-          node["tourism"="hostel"](around:5000,${lat},${lng});
-          way["tourism"="hotel"](around:5000,${lat},${lng});
-        );
-        out center 8;
-      `;
-    } else {
-      query = `
-        [out:json][timeout:10];
-        (
-          node["tourism"="attraction"](around:10000,${lat},${lng});
-          node["tourism"="viewpoint"](around:10000,${lat},${lng});
-          node["historic"](around:10000,${lat},${lng});
-          way["tourism"="attraction"](around:10000,${lat},${lng});
-        );
-        out center 8;
-      `;
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srnamespace=6&srlimit=10&format=json&origin=*`;
+    const searchRes = await fetch(searchUrl);
+    const searchData = await searchRes.json();
+
+    const fileNames = (searchData.query?.search || [])
+      .map((r: any) => r.title as string)
+      .filter((t: string) => {
+        const lower = t.toLowerCase();
+        return /\.(jpg|jpeg|png|webp)$/i.test(t) &&
+          !lower.includes("map") &&
+          !lower.includes("logo") &&
+          !lower.includes("icon") &&
+          !lower.includes("flag") &&
+          !lower.includes("location");
+      })
+      .slice(0, 6);
+
+    if (fileNames.length === 0) return [];
+
+    // Get actual image URLs
+    const titles = fileNames.join("|");
+    const infoUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(titles)}&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*`;
+    const infoRes = await fetch(infoUrl);
+    const infoData = await infoRes.json();
+    const pages = infoData.query?.pages;
+
+    if (!pages) return [];
+
+    const photos: string[] = [];
+    for (const p of Object.values(pages) as any[]) {
+      const url = p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url;
+      if (url) photos.push(url);
     }
-
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      body: `data=${encodeURIComponent(query)}`,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
-    const data = await res.json();
-
-    return (data.elements || [])
-      .filter((el: any) => el.tags?.name)
-      .slice(0, 6)
-      .map((el: any) => ({
-        name: el.tags.name,
-        address: [el.tags["addr:street"], el.tags["addr:city"]].filter(Boolean).join(", ") || "",
-        lat: el.lat || el.center?.lat,
-        lng: el.lon || el.center?.lon,
-        stars: el.tags.stars ? parseInt(el.tags.stars) : undefined,
-        website: el.tags.website || null,
-      }));
+    return photos;
   } catch (e) {
-    console.error(`Overpass ${type} error:`, e);
-    return [];
-  }
-}
-
-// Get Unsplash photos for a place
-async function fetchUnsplashPhotos(query: string): Promise<string[]> {
-  try {
-    const res = await fetch(
-      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=6&orientation=landscape`,
-      { headers: { Authorization: "Client-ID " + "AXkVjB4YR7Y3C9FXQR3RN0fB_5j2hVjHfEfgJU2cjV0" } }
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.results || []).map((r: any) => r.urls?.regular || r.urls?.small).filter(Boolean);
-  } catch (e) {
-    console.error("Unsplash error:", e);
+    console.error("Commons API error:", e);
     return [];
   }
 }
@@ -165,28 +108,22 @@ serve(async (req) => {
     const { name, lat, lng } = await req.json();
     console.log("Request:", { name, lat, lng });
 
-    // Fetch Wikipedia data and nearby places in parallel
-    const [wikiData, nearbyHotels, nearbyAttractions, unsplashPhotos] = await Promise.all([
+    // Fetch Wikipedia data and Commons photos in parallel
+    const [wikiData, commonsPhotos] = await Promise.all([
       fetchWikipediaData(name),
-      fetchNearbyPlaces(lat, lng, "hotel"),
-      fetchNearbyPlaces(lat, lng, "attraction"),
-      fetchUnsplashPhotos(`${name} tourism`),
+      fetchCommonsPhotos(name),
     ]);
 
     console.log("Wikipedia:", wikiData ? `Found: ${wikiData.title}` : "Not found");
-    console.log("Hotels:", nearbyHotels.length, "Attractions:", nearbyAttractions.length);
-    console.log("Unsplash photos:", unsplashPhotos.length);
+    console.log("Commons photos:", commonsPhotos.length);
 
-    // Combine photos: Wikipedia first, then Unsplash
-    const photos = [
+    // Combine: Wikipedia main image first, then Commons photos
+    const allPhotos = [
       ...(wikiData?.photos || []),
-      ...unsplashPhotos,
-    ].slice(0, 6);
-
-    // Filter out self from nearby attractions
-    const filteredAttractions = nearbyAttractions.filter(
-      (a: any) => a.name.toLowerCase() !== name.toLowerCase()
-    );
+      ...commonsPhotos,
+    ];
+    // Deduplicate
+    const photos = [...new Set(allPhotos)].slice(0, 6);
 
     const mapsUrl = `https://www.google.com/maps/place/${encodeURIComponent(name)}/@${lat},${lng},17z`;
 
@@ -201,20 +138,8 @@ serve(async (req) => {
       openingHours: null,
       lat: wikiData?.coordinates?.lat || lat,
       lng: wikiData?.coordinates?.lon || lng,
-      nearbyHotels: nearbyHotels.map((h: any) => ({
-        name: h.name,
-        address: h.address,
-        lat: h.lat,
-        lng: h.lng,
-        photoUrl: null,
-      })),
-      nearbyAttractions: filteredAttractions.map((a: any) => ({
-        name: a.name,
-        address: a.address,
-        lat: a.lat,
-        lng: a.lng,
-        photoUrl: null,
-      })),
+      nearbyHotels: [],
+      nearbyAttractions: [],
     };
 
     return new Response(JSON.stringify(result), {
