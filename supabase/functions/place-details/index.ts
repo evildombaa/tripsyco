@@ -146,10 +146,10 @@ serve(async (req) => {
     console.log("Hotels:", nearbyHotels.length, "Attractions:", nearbyAttractions.length);
     console.log("Unsplash photos:", unsplashPhotos.length);
 
-    // Combine photos: Wikipedia first, then Unsplash
+    // Combine photos: Unsplash first (more relevant), then Wikipedia thumbnail
     const photos = [
-      ...(wikiData?.photos || []),
       ...unsplashPhotos,
+      ...(wikiData?.photos || []),
     ].slice(0, 6);
 
     // Filter out self from nearby attractions
