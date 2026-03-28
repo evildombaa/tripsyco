@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, ExternalLink, Clock, Globe, Loader2, Hotel, Landmark, Plane } from "lucide-react";
+import { ArrowLeft, Star, MapPin, ExternalLink, Clock, Globe, Loader2, Plane } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
