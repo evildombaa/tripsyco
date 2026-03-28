@@ -75,10 +75,16 @@ const DestinationDetail = () => {
         body: { name, lat: parseFloat(lat), lng: parseFloat(lng) },
       });
 
-      const hasRealData = !error && data && !data.error && (data.address || data.photos?.length > 0 || data.reviews?.length > 0);
+      const hasRealData = !error && data && !data.error && (data.description || data.photos?.length > 0 || data.nearbyHotels?.length > 0 || data.nearbyAttractions?.length > 0);
       
       if (hasRealData) {
-        setDetails(data);
+        // Merge URL params data with API data for completeness
+        setDetails({
+          ...data,
+          address: data.address || searchParams.get("address") || "",
+          rating: data.rating || (parseFloat(searchParams.get("rating") || "0") || undefined),
+          userRatingsTotal: data.userRatingsTotal || (parseInt(searchParams.get("userRatingsTotal") || "0") || undefined),
+        });
         setHeroPhoto(data.photos?.[0] || fallbackPhoto);
       } else {
         // Use data from URL params as fallback
