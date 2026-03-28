@@ -37,43 +37,12 @@ async function fetchWikipediaData(name: string) {
 
     if (!page || page.missing !== undefined) return null;
 
-    // Step 3: Get multiple images from the page
-    const imagesUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(pageTitle)}&prop=images&imlimit=20&format=json&origin=*`;
-    const imagesRes = await fetch(imagesUrl);
-    const imagesData = await imagesRes.json();
-    const imagesPages = imagesData.query?.pages;
-    const imagesPage = imagesPages ? Object.values(imagesPages)[0] as any : null;
-
-    const imageFiles = (imagesPage?.images || [])
-      .map((img: any) => img.title as string)
-      .filter((title: string) => {
-        const lower = title.toLowerCase();
-        const hasValidExt = /\.(jpg|jpeg|png|webp)$/i.test(title);
-        const isBlacklisted = ["icon", "logo", "flag", "commons", "symbol", "map", "button", "arrow", "edit", "wikimedia", "wikidata"].some(kw => lower.includes(kw));
-        return hasValidExt && !isBlacklisted;
-      })
-      .slice(0, 8);
-
-    // Step 4: Get image URLs
+    // Get the main thumbnail only (Wikipedia page images are often unrelated)
     const photos: string[] = [];
     if (page.thumbnail?.source) {
-      photos.push(page.thumbnail.source);
-    }
-
-    if (imageFiles.length > 0) {
-      const fileTitles = imageFiles.join("|");
-      const fileInfoUrl = `https://${wikiLang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(fileTitles)}&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*`;
-      const fileInfoRes = await fetch(fileInfoUrl);
-      const fileInfoData = await fileInfoRes.json();
-      const filePages = fileInfoData.query?.pages;
-      if (filePages) {
-        for (const fp of Object.values(filePages) as any[]) {
-          const thumbUrl = fp.imageinfo?.[0]?.thumburl || fp.imageinfo?.[0]?.url;
-          if (thumbUrl && !photos.includes(thumbUrl)) {
-            photos.push(thumbUrl);
-          }
-        }
-      }
+      // Get higher resolution version
+      const hiRes = page.thumbnail.source.replace(/\/\d+px-/, "/800px-");
+      photos.push(hiRes);
     }
 
     return {
