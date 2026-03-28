@@ -39,7 +39,7 @@ async function fetchWikipediaData(name: string) {
 
     // Get high-res thumbnail
     const photos: string[] = [];
-    if (page.thumbnail?.source) {
+    if (page.thumbnail?.source && !page.thumbnail.source.includes(".svg")) {
       const hiRes = page.thumbnail.source.replace(/\/\d+px-/, "/1200px-");
       photos.push(hiRes);
     }
