@@ -85,16 +85,13 @@ serve(async (req) => {
     const { name, lat, lng } = await req.json();
     console.log("Request:", { name, lat, lng });
 
-    // Fetch Wikipedia data and nearby places in parallel
-    const [wikiData, nearbyHotels, nearbyAttractions, unsplashPhotos] = await Promise.all([
+    // Fetch Wikipedia data and Unsplash photos in parallel
+    const [wikiData, unsplashPhotos] = await Promise.all([
       fetchWikipediaData(name),
-      fetchNearbyPlaces(lat, lng, "hotel"),
-      fetchNearbyPlaces(lat, lng, "attraction"),
       fetchUnsplashPhotos(`${name} tourism`),
     ]);
 
     console.log("Wikipedia:", wikiData ? `Found: ${wikiData.title}` : "Not found");
-    console.log("Hotels:", nearbyHotels.length, "Attractions:", nearbyAttractions.length);
     console.log("Unsplash photos:", unsplashPhotos.length);
 
     // Combine photos: Unsplash first (more relevant), then Wikipedia thumbnail
@@ -102,11 +99,6 @@ serve(async (req) => {
       ...unsplashPhotos,
       ...(wikiData?.photos || []),
     ].slice(0, 6);
-
-    // Filter out self from nearby attractions
-    const filteredAttractions = nearbyAttractions.filter(
-      (a: any) => a.name.toLowerCase() !== name.toLowerCase()
-    );
 
     const mapsUrl = `https://www.google.com/maps/place/${encodeURIComponent(name)}/@${lat},${lng},17z`;
 
@@ -121,20 +113,8 @@ serve(async (req) => {
       openingHours: null,
       lat: wikiData?.coordinates?.lat || lat,
       lng: wikiData?.coordinates?.lon || lng,
-      nearbyHotels: nearbyHotels.map((h: any) => ({
-        name: h.name,
-        address: h.address,
-        lat: h.lat,
-        lng: h.lng,
-        photoUrl: null,
-      })),
-      nearbyAttractions: filteredAttractions.map((a: any) => ({
-        name: a.name,
-        address: a.address,
-        lat: a.lat,
-        lng: a.lng,
-        photoUrl: null,
-      })),
+      nearbyHotels: [],
+      nearbyAttractions: [],
     };
 
     return new Response(JSON.stringify(result), {
