@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo } from "react";
 import TinderCard from "react-tinder-card";
 import { Button } from "@/components/ui/button";
 import { ThumbsUp, ThumbsDown, MapPin, Star, RotateCcw } from "lucide-react";
