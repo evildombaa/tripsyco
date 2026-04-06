@@ -175,5 +175,5 @@ const ItineraryV2Swipe = ({ places, onComplete }: Props) => {
   );
 };
 
-import React from "react";
+
 export default ItineraryV2Swipe;
