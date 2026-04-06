@@ -9,7 +9,7 @@ import Index from "./pages/Index";
 import Explore from "./pages/Explore";
 import DestinationDetail from "./pages/DestinationDetail";
 import Itinerary from "./pages/Itinerary";
-import Expenses from "./pages/Expenses";
+
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
@@ -28,7 +28,7 @@ const App = () => (
             <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
             <Route path="/explore/detail" element={<ProtectedRoute><DestinationDetail /></ProtectedRoute>} />
             <Route path="/itinerary" element={<ProtectedRoute><Itinerary /></ProtectedRoute>} />
-            <Route path="/expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+            
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

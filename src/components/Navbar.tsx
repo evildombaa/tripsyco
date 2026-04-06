@@ -15,7 +15,7 @@ const Navbar = () => {
     { to: "/", label: "Beranda" },
     { to: "/explore", label: "Jelajahi" },
     { to: "/itinerary", label: "Itinerary" },
-    { to: "/expenses", label: "Pengeluaran" },
+    
   ];
 
   const handleSignOut = async () => {
