@@ -9,7 +9,7 @@ import Index from "./pages/Index";
 import Explore from "./pages/Explore";
 import DestinationDetail from "./pages/DestinationDetail";
 import Itinerary from "./pages/Itinerary";
-
+import ItineraryV2 from "./pages/ItineraryV2";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
