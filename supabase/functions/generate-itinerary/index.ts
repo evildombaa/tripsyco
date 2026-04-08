@@ -10,8 +10,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { preferences, feedback, liked_places } = await req.json();
     const { destination, travel_purpose, travel_companion, travel_style, budget, duration, departure_date } = preferences;
@@ -111,28 +111,27 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
 
     console.log("Generating itinerary for", destination, "with", liked_places?.length || 0, "liked places");
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 4096,
       }),
     });
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error("OpenAI error:", openaiRes.status, errText);
-      throw new Error(`OpenAI API error: ${openaiRes.status}`);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
+      throw new Error(`AI gateway error: ${aiRes.status}`);
     }
 
-    const openaiData = await openaiRes.json();
-    const content = openaiData.choices?.[0]?.message?.content || "";
+    const aiData = await aiRes.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
 
     let itinerary;
     try {

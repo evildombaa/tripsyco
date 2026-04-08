@@ -260,7 +260,7 @@ const ItineraryV2 = () => {
                 ❤️ {likedPlaces.length} tempat disukai
               </p>
             </div>
-            <SwipeCard place={places[currentIndex]} onSwipe={handleSwipe} />
+            <SwipeCard key={`${currentIndex}-${places[currentIndex]?.name}`} place={places[currentIndex]} onSwipe={handleSwipe} />
           </div>
         )}
 
