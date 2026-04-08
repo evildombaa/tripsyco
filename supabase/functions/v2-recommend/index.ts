@@ -12,84 +12,35 @@ serve(async (req) => {
   try {
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
-    const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!GOOGLE_MAPS_API_KEY) throw new Error("GOOGLE_MAPS_API_KEY not configured");
 
     const { destination, purposes, purpose_custom, companion, style, budget } = await req.json();
 
-    // Build search queries based on purposes
     const purposeStr = [...(purposes || []), purpose_custom].filter(Boolean).join(", ");
-    
-    const queries = [
-      `top tourist attractions in ${destination}`,
-      `best restaurants and cafes in ${destination}`,
-      `things to do in ${destination}`,
-    ];
 
-    const allResults: any[] = [];
-    for (const q of queries) {
-      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
-      console.log("Fetching Google Places:", url.replace(GOOGLE_MAPS_API_KEY, "***"));
-      const res = await fetch(url);
-      const data = await res.json();
-      console.log(`Google Places query "${q}": status=${data.status}, results=${(data.results || []).length}`);
-      if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
-        console.error("Google Places error:", data.status, data.error_message);
-      }
-      allResults.push(...(data.results || []).slice(0, 10));
-    }
+    const prompt = `Kamu adalah travel advisor profesional untuk Indonesia. Berikan rekomendasi 12-15 tempat wisata, restoran, dan aktivitas terbaik di ${destination} untuk traveler dengan profil:
+- Tujuan: ${purposeStr || "wisata umum"}
+- Pendamping: ${companion || "solo"}
+- Gaya: ${style || "seimbang"}
+- Budget: ${budget || "menengah"}
 
-    console.log("Total raw results:", allResults.length);
-
-    // Deduplicate by place_id
-    const seen = new Set<string>();
-    const uniquePlaces = allResults.filter((p) => {
-      if (seen.has(p.place_id)) return false;
-      seen.add(p.place_id);
-      return true;
-    });
-
-    console.log("Unique places:", uniquePlaces.length);
-
-    if (uniquePlaces.length === 0) {
-      return new Response(JSON.stringify({ places: [], debug: "No Google Places results found" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const placesInfo = uniquePlaces.slice(0, 20).map((p: any) => ({
-      name: p.name,
-      address: p.formatted_address,
-      rating: p.rating || 0,
-      place_id: p.place_id,
-      photo_url: p.photos?.[0]?.photo_reference
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=600&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        : null,
-    }));
-
-    // Use OpenAI to generate descriptions and filter relevance
-    const promptPurposeStr = purposeStr;
-
-    const prompt = `Kamu adalah travel advisor. Dari daftar tempat berikut di ${destination}, pilih 10-15 tempat paling relevan untuk traveler dengan profil:
-- Tujuan: ${purposeStr}
-- Pendamping: ${companion}
-- Gaya: ${style}
-- Budget: ${budget}
-
-Daftar tempat:
-${placesInfo.map((p: any, i: number) => `${i + 1}. ${p.name} (${p.address}, rating: ${p.rating})`).join("\n")}
+Untuk setiap tempat, berikan informasi yang akurat dan nyata (tempat yang benar-benar ada).
 
 Berikan response JSON SAJA (tanpa markdown/backtick):
 {
   "places": [
     {
-      "index": 0,
-      "description": "Deskripsi menarik 1-2 kalimat tentang tempat ini dan kenapa cocok untuk traveler ini"
+      "name": "Nama tempat yang nyata dan ada",
+      "description": "Deskripsi menarik 2-3 kalimat tentang tempat ini dan kenapa cocok untuk traveler ini",
+      "rating": 4.5,
+      "address": "Alamat lengkap tempat ini",
+      "category": "wisata/kuliner/aktivitas/budaya/alam"
     }
   ]
 }
 
-index adalah indeks dari daftar di atas (0-based). Urutkan dari yang paling direkomendasikan.`;
+Pastikan semua tempat adalah tempat nyata yang benar-benar ada di ${destination}. Rating antara 3.0-5.0. Urutkan dari yang paling direkomendasikan.`;
+
+    console.log("Calling OpenAI for recommendations...");
 
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -101,6 +52,7 @@ index adalah indeks dari daftar di atas (0-based). Urutkan dari yang paling dire
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
+        max_tokens: 4096,
       }),
     });
 
@@ -112,6 +64,7 @@ index adalah indeks dari daftar di atas (0-based). Urutkan dari yang paling dire
 
     const openaiData = await openaiRes.json();
     const content = openaiData.choices?.[0]?.message?.content || "";
+    console.log("OpenAI response length:", content.length);
 
     let parsed;
     try {
@@ -122,18 +75,16 @@ index adalah indeks dari daftar di atas (0-based). Urutkan dari yang paling dire
       else throw new Error("Failed to parse AI response");
     }
 
-    const result = (parsed.places || []).map((p: any) => {
-      const info = placesInfo[p.index];
-      if (!info) return null;
-      return {
-        name: info.name,
-        description: p.description,
-        rating: info.rating,
-        photo_url: info.photo_url,
-        place_id: info.place_id,
-        address: info.address,
-      };
-    }).filter(Boolean);
+    const result = (parsed.places || []).map((p: any) => ({
+      name: p.name,
+      description: p.description,
+      rating: p.rating || 4.0,
+      photo_url: null,
+      place_id: null,
+      address: p.address || null,
+    }));
+
+    console.log("Returning", result.length, "places");
 
     return new Response(JSON.stringify({ places: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
