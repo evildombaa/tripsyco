@@ -10,8 +10,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { destination, purposes, purpose_custom, companion, style, budget } = await req.json();
 
@@ -24,6 +24,7 @@ serve(async (req) => {
 - Budget: ${budget || "menengah"}
 
 Untuk setiap tempat, berikan informasi yang akurat dan nyata (tempat yang benar-benar ada).
+Untuk setiap tempat, berikan juga search_term yang bagus untuk mencari foto tempat tersebut (dalam bahasa Inggris, contoh: "Ubud Monkey Forest Bali", "Tanah Lot Temple Bali").
 
 Berikan response JSON SAJA (tanpa markdown/backtick):
 {
@@ -33,38 +34,48 @@ Berikan response JSON SAJA (tanpa markdown/backtick):
       "description": "Deskripsi menarik 2-3 kalimat tentang tempat ini dan kenapa cocok untuk traveler ini",
       "rating": 4.5,
       "address": "Alamat lengkap tempat ini",
-      "category": "wisata/kuliner/aktivitas/budaya/alam"
+      "category": "wisata/kuliner/aktivitas/budaya/alam",
+      "search_term": "Place Name City for photo search"
     }
   ]
 }
 
 Pastikan semua tempat adalah tempat nyata yang benar-benar ada di ${destination}. Rating antara 3.0-5.0. Urutkan dari yang paling direkomendasikan.`;
 
-    console.log("Calling OpenAI for recommendations...");
+    console.log("Calling AI for recommendations...");
 
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
-        max_tokens: 4096,
       }),
     });
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error("OpenAI error:", openaiRes.status, errText);
-      throw new Error(`OpenAI API error: ${openaiRes.status}`);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
+      if (aiRes.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded, please try again later." }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiRes.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required, please add credits." }), {
+          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`AI gateway error: ${aiRes.status}`);
     }
 
-    const openaiData = await openaiRes.json();
-    const content = openaiData.choices?.[0]?.message?.content || "";
-    console.log("OpenAI response length:", content.length);
+    const aiData = await aiRes.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
+    console.log("AI response length:", content.length);
 
     let parsed;
     try {
@@ -75,16 +86,20 @@ Pastikan semua tempat adalah tempat nyata yang benar-benar ada di ${destination}
       else throw new Error("Failed to parse AI response");
     }
 
-    const result = (parsed.places || []).map((p: any) => ({
-      name: p.name,
-      description: p.description,
-      rating: p.rating || 4.0,
-      photo_url: null,
-      place_id: null,
-      address: p.address || null,
-    }));
+    const result = (parsed.places || []).map((p: any) => {
+      const searchTerm = p.search_term || p.name;
+      const photoUrl = `https://source.unsplash.com/600x400/?${encodeURIComponent(searchTerm)}`;
+      return {
+        name: p.name,
+        description: p.description,
+        rating: p.rating || 4.0,
+        photo_url: photoUrl,
+        place_id: null,
+        address: p.address || null,
+      };
+    });
 
-    console.log("Returning", result.length, "places");
+    console.log("Returning", result.length, "places with photos");
 
     return new Response(JSON.stringify({ places: result }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

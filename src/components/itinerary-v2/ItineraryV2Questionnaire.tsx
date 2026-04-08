@@ -4,6 +4,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRange } from "react-day-picker";
 import QuestionnaireStep from "./QuestionnaireStep";
+import { Landmark, UtensilsCrossed, Mountain, Bath, Briefcase, Sparkles, User, Heart, Users, Home, Turtle, Scale, Rocket, Dice5, Wallet, CreditCard, Crown, Star } from "lucide-react";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => {
   const h = i.toString().padStart(2, "0");
@@ -11,33 +12,33 @@ const HOURS = Array.from({ length: 24 }, (_, i) => {
 });
 
 const PURPOSES = [
-  { value: "budaya", label: "🏛️ Budaya lokal" },
-  { value: "kuliner", label: "🍜 Kuliner" },
-  { value: "alam", label: "🏔️ Alam & petualangan" },
-  { value: "relaksasi", label: "🧘 Relaksasi" },
-  { value: "bisnis", label: "💼 Bisnis" },
-  { value: "wellness", label: "💆 Wellness" },
+  { value: "budaya", label: "Budaya lokal", icon: Landmark },
+  { value: "kuliner", label: "Kuliner", icon: UtensilsCrossed },
+  { value: "alam", label: "Alam & petualangan", icon: Mountain },
+  { value: "relaksasi", label: "Relaksasi", icon: Bath },
+  { value: "bisnis", label: "Bisnis", icon: Briefcase },
+  { value: "wellness", label: "Wellness", icon: Sparkles },
 ];
 
 const COMPANIONS = [
-  { value: "solo", label: "🧍 Solo" },
-  { value: "pasangan", label: "💑 Pasangan" },
-  { value: "teman", label: "👫 Teman" },
-  { value: "keluarga", label: "👨‍👩‍👧‍👦 Keluarga" },
+  { value: "solo", label: "Solo", icon: User },
+  { value: "pasangan", label: "Pasangan", icon: Heart },
+  { value: "teman", label: "Teman", icon: Users },
+  { value: "keluarga", label: "Keluarga", icon: Home },
 ];
 
 const STYLES = [
-  { value: "santai", label: "🐢 Santai & mendalam" },
-  { value: "seimbang", label: "⚖️ Seimbang" },
-  { value: "padat", label: "🚀 Padat & eksploratif" },
-  { value: "spontan", label: "🎲 Spontan" },
+  { value: "santai", label: "Santai & mendalam", icon: Turtle },
+  { value: "seimbang", label: "Seimbang", icon: Scale },
+  { value: "padat", label: "Padat & eksploratif", icon: Rocket },
+  { value: "spontan", label: "Spontan", icon: Dice5 },
 ];
 
 const BUDGETS = [
-  { value: "hemat", label: "💰 Hemat", desc: "Rp 500.000 – Rp 1.000.000" },
-  { value: "menengah", label: "💳 Menengah", desc: "Rp 2.000.000 – Rp 5.000.000" },
-  { value: "nyaman", label: "✨ Nyaman", desc: "Rp 7.000.000 – Rp 10.000.000" },
-  { value: "premium", label: "👑 Premium", desc: "Rp 10.000.000 ke atas" },
+  { value: "hemat", label: "Hemat", desc: "Rp 500.000 – Rp 1.000.000", icon: Wallet },
+  { value: "menengah", label: "Menengah", desc: "Rp 2.000.000 – Rp 5.000.000", icon: CreditCard },
+  { value: "nyaman", label: "Nyaman", desc: "Rp 7.000.000 – Rp 10.000.000", icon: Star },
+  { value: "premium", label: "Premium", desc: "Rp 10.000.000 ke atas", icon: Crown },
 ];
 
 export interface V2Preferences {
@@ -170,19 +171,23 @@ const ItineraryV2Questionnaire = ({ onComplete }: Props) => {
       {step === 2 && (
         <QuestionnaireStep step={2} totalSteps={6} title="Apa tujuan utama perjalanan Anda?" subtitle="Pilih satu atau lebih" onNext={next} onBack={back} canProceed={canProceed[2]}>
           <div className="grid grid-cols-2 gap-3 mb-4">
-            {PURPOSES.map((p) => (
-              <button
-                key={p.value}
-                onClick={() => togglePurpose(p.value)}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  purposes.includes(p.value)
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className="text-base font-medium">{p.label}</span>
-              </button>
-            ))}
+            {PURPOSES.map((p) => {
+              const Icon = p.icon;
+              return (
+                <button
+                  key={p.value}
+                  onClick={() => togglePurpose(p.value)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
+                    purposes.includes(p.value)
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="text-base font-medium">{p.label}</span>
+                </button>
+              );
+            })}
           </div>
           <Input
             placeholder="Jawaban lain? (opsional)"
@@ -195,19 +200,23 @@ const ItineraryV2Questionnaire = ({ onComplete }: Props) => {
       {step === 3 && (
         <QuestionnaireStep step={3} totalSteps={6} title="Dengan siapa Anda bepergian?" onNext={next} onBack={back} canProceed={canProceed[3]}>
           <div className="grid grid-cols-2 gap-3 mb-4">
-            {COMPANIONS.map((c) => (
-              <button
-                key={c.value}
-                onClick={() => setCompanion(c.value)}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  companion === c.value
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className="text-base font-medium">{c.label}</span>
-              </button>
-            ))}
+            {COMPANIONS.map((c) => {
+              const Icon = c.icon;
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => setCompanion(c.value)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
+                    companion === c.value
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="text-base font-medium">{c.label}</span>
+                </button>
+              );
+            })}
           </div>
           <Input
             placeholder="Jawaban lain? (opsional)"
@@ -220,19 +229,23 @@ const ItineraryV2Questionnaire = ({ onComplete }: Props) => {
       {step === 4 && (
         <QuestionnaireStep step={4} totalSteps={6} title="Bagaimana gaya perjalanan yang Anda inginkan?" onNext={next} onBack={back} canProceed={canProceed[4]}>
           <div className="grid grid-cols-2 gap-3 mb-4">
-            {STYLES.map((s) => (
-              <button
-                key={s.value}
-                onClick={() => setStyle(s.value)}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  style === s.value
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <span className="text-base font-medium">{s.label}</span>
-              </button>
-            ))}
+            {STYLES.map((s) => {
+              const Icon = s.icon;
+              return (
+                <button
+                  key={s.value}
+                  onClick={() => setStyle(s.value)}
+                  className={`p-4 rounded-xl border-2 text-left transition-all flex items-center gap-3 ${
+                    style === s.value
+                      ? "border-primary bg-primary/10 text-foreground"
+                      : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="text-base font-medium">{s.label}</span>
+                </button>
+              );
+            })}
           </div>
           <Input
             placeholder="Jawaban lain? (opsional)"
@@ -245,20 +258,26 @@ const ItineraryV2Questionnaire = ({ onComplete }: Props) => {
       {step === 5 && (
         <QuestionnaireStep step={5} totalSteps={6} title="Budget yang Anda siapkan?" onNext={next} onBack={back} canProceed={canProceed[5]} isLast>
           <div className="grid grid-cols-1 gap-3">
-            {BUDGETS.map((b) => (
-              <button
-                key={b.value}
-                onClick={() => setBudget(b.value)}
-                className={`p-5 rounded-xl border-2 text-left transition-all ${
-                  budget === b.value
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/40"
-                }`}
-              >
-                <span className="text-base font-semibold text-foreground">{b.label}</span>
-                <p className="text-sm text-muted-foreground mt-0.5">{b.desc}</p>
-              </button>
-            ))}
+            {BUDGETS.map((b) => {
+              const Icon = b.icon;
+              return (
+                <button
+                  key={b.value}
+                  onClick={() => setBudget(b.value)}
+                  className={`p-5 rounded-xl border-2 text-left transition-all flex items-center gap-4 ${
+                    budget === b.value
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <Icon className="h-5 w-5 shrink-0 text-foreground" />
+                  <div>
+                    <span className="text-base font-semibold text-foreground">{b.label}</span>
+                    <p className="text-sm text-muted-foreground mt-0.5">{b.desc}</p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </QuestionnaireStep>
       )}
