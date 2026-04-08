@@ -152,7 +152,6 @@ const ItineraryV2 = () => {
     try {
       if (!user || !preferences) return;
 
-      // Create itinerary via generate function
       const { data, error } = await supabase.functions.invoke("generate-itinerary", {
         body: {
           preferences: {
@@ -164,6 +163,12 @@ const ItineraryV2 = () => {
             duration: getDuration(preferences.dateStart, preferences.dateEnd),
             departure_date: preferences.dateStart,
           },
+          liked_places: liked.map(p => ({
+            name: p.name,
+            description: p.description,
+            rating: p.rating,
+            address: p.address,
+          })),
         },
       });
 
