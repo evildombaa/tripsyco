@@ -17,20 +17,29 @@ serve(async (req) => {
 
     const { destination, purposes, purpose_custom, companion, style, budget } = await req.json();
 
-    // Search Google Places
+    // Build search queries based on purposes
+    const purposeStr = [...(purposes || []), purpose_custom].filter(Boolean).join(", ");
+    
     const queries = [
-      `tempat+wisata+populer+${encodeURIComponent(destination)}`,
-      `restoran+kafe+terbaik+${encodeURIComponent(destination)}`,
-      `aktivitas+menarik+${encodeURIComponent(destination)}`,
+      `top tourist attractions in ${destination}`,
+      `best restaurants and cafes in ${destination}`,
+      `things to do in ${destination}`,
     ];
 
     const allResults: any[] = [];
     for (const q of queries) {
-      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${q}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
+      const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(q)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
+      console.log("Fetching Google Places:", url.replace(GOOGLE_MAPS_API_KEY, "***"));
       const res = await fetch(url);
       const data = await res.json();
+      console.log(`Google Places query "${q}": status=${data.status}, results=${(data.results || []).length}`);
+      if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+        console.error("Google Places error:", data.status, data.error_message);
+      }
       allResults.push(...(data.results || []).slice(0, 10));
     }
+
+    console.log("Total raw results:", allResults.length);
 
     // Deduplicate by place_id
     const seen = new Set<string>();
@@ -39,6 +48,14 @@ serve(async (req) => {
       seen.add(p.place_id);
       return true;
     });
+
+    console.log("Unique places:", uniquePlaces.length);
+
+    if (uniquePlaces.length === 0) {
+      return new Response(JSON.stringify({ places: [], debug: "No Google Places results found" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const placesInfo = uniquePlaces.slice(0, 20).map((p: any) => ({
       name: p.name,
