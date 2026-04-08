@@ -68,7 +68,7 @@ serve(async (req) => {
     }));
 
     // Use OpenAI to generate descriptions and filter relevance
-    const purposeStr = [...(purposes || []), purpose_custom].filter(Boolean).join(", ");
+    const promptPurposeStr = purposeStr;
 
     const prompt = `Kamu adalah travel advisor. Dari daftar tempat berikut di ${destination}, pilih 10-15 tempat paling relevan untuk traveler dengan profil:
 - Tujuan: ${purposeStr}
