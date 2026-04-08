@@ -124,14 +124,14 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
       }),
     });
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error("OpenAI error:", openaiRes.status, errText);
-      throw new Error(`OpenAI API error: ${openaiRes.status}`);
+    if (!aiRes.ok) {
+      const errText = await aiRes.text();
+      console.error("AI gateway error:", aiRes.status, errText);
+      throw new Error(`AI gateway error: ${aiRes.status}`);
     }
 
-    const openaiData = await openaiRes.json();
-    const content = openaiData.choices?.[0]?.message?.content || "";
+    const aiData = await aiRes.json();
+    const content = aiData.choices?.[0]?.message?.content || "";
 
     let itinerary;
     try {
