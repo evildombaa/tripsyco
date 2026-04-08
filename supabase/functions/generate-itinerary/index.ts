@@ -10,10 +10,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
-    const { preferences, feedback, liked_places } = await req.json();
+    const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
+    if (!GOOGLE_MAPS_API_KEY) throw new Error("GOOGLE_MAPS_API_KEY not configured");
+
+    const { preferences, feedback } = await req.json();
     const { destination, travel_purpose, travel_companion, travel_style, budget, duration, departure_date } = preferences;
 
     let numDays = 1;
@@ -37,17 +40,35 @@ serve(async (req) => {
       }
     }
 
-    // Build places context from liked_places or Google Places
-    let placesContext = "";
-    
-    if (liked_places && Array.isArray(liked_places) && liked_places.length > 0) {
-      // Use liked places from V2 swipe flow
-      placesContext = `Berikut tempat-tempat yang DIPILIH oleh user (WAJIB gunakan semua tempat ini dalam itinerary):
-${liked_places.map((p: any) => `- ${p.name} (${p.address || "alamat tidak diketahui"}, rating: ${p.rating || "-"}): ${p.description || ""}`).join("\n")}`;
-    } else {
-      // Fallback: let AI generate places
-      placesContext = `Gunakan pengetahuanmu tentang tempat wisata, restoran, dan aktivitas populer di ${destination}. Pastikan semua tempat yang disebutkan adalah tempat nyata yang benar-benar ada.`;
-    }
+    // Search places
+    const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=tempat+wisata+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
+    const placesRes = await fetch(placesUrl);
+    const placesData = await placesRes.json();
+
+    const topPlaces = (placesData.results || []).slice(0, 20).map((p: any) => ({
+      name: p.name,
+      address: p.formatted_address,
+      rating: p.rating,
+      place_id: p.place_id,
+      photo_url: p.photos?.[0]?.photo_reference
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+        : null,
+    }));
+
+    // Search restaurants
+    const foodUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=restoran+populer+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
+    const foodRes = await fetch(foodUrl);
+    const foodData = await foodRes.json();
+
+    const topFood = (foodData.results || []).slice(0, 10).map((p: any) => ({
+      name: p.name,
+      address: p.formatted_address,
+      rating: p.rating,
+      place_id: p.place_id,
+      photo_url: p.photos?.[0]?.photo_reference
+        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
+        : null,
+    }));
 
     let feedbackContext = "";
     if (feedback && Array.isArray(feedback) && feedback.length > 0) {
@@ -59,11 +80,11 @@ Sesuaikan itinerary berdasarkan feedback di atas.`;
     const dateContext = dates.length > 0
       ? `\nTANGGAL PERJALANAN: ${dates.join(", ")}
 PENTING - Pertimbangkan hal berikut untuk setiap tanggal:
-1. Hari besar nasional Indonesia yang jatuh pada tanggal-tanggal tersebut
+1. Hari besar nasional Indonesia (Idul Fitri, Natal, Nyepi, Waisak, Imlek, dll) yang jatuh pada tanggal-tanggal tersebut
 2. Event lokal atau festival di ${destination} pada tanggal tersebut
-3. Weekend vs weekday
-4. Jika ada hari besar: beberapa tempat mungkin TUTUP
-5. Sesuaikan jadwal berdasarkan kondisi di atas`
+3. Weekend vs weekday (kepadatan wisata berbeda)
+4. Jika ada hari besar: beberapa tempat wisata mungkin TUTUP, tempat ibadah bisa sangat ramai, harga bisa naik, lalu lintas bisa sangat macet
+5. Sesuaikan jadwal berdasarkan kondisi di atas (misalnya: hindari tempat ramai saat hari besar, rekomendasikan alternatif)`
       : "";
 
     const prompt = `Kamu adalah travel planner profesional untuk wisata di Indonesia.
@@ -74,16 +95,21 @@ Buatkan itinerary ${numDays} hari untuk perjalanan ke ${destination} dengan deta
 - Budget: Rp ${Number(budget).toLocaleString("id-ID")}
 ${dateContext}
 
-${placesContext}
+Berikut tempat wisata populer di ${destination} (dari Google Maps):
+${topPlaces.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
+
+Berikut restoran populer di ${destination}:
+${topFood.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
 ${feedbackContext}
 
 PENTING: 
-1. ${liked_places?.length ? "WAJIB gunakan SEMUA tempat yang dipilih user di atas" : "Gunakan tempat nyata yang ada di " + destination}
+1. Gunakan tempat-tempat dari daftar di atas sebanyak mungkin
 2. Berikan status untuk setiap aktivitas: "must", "want", atau "maybe"
 3. Berikan estimasi biaya setiap aktivitas dalam Rupiah
 4. Berikan deskripsi singkat untuk setiap aktivitas
 5. Pertimbangkan jarak dan waktu tempuh antar tempat
-6. Jika ada hari besar/event pada tanggal tertentu, SEBUTKAN di deskripsi
+6. Jika ada hari besar/event pada tanggal tertentu, SEBUTKAN di deskripsi aktivitas dan sesuaikan jadwal
+7. Berikan peringatan jika ada tempat yang kemungkinan tutup atau sangat ramai
 
 Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan struktur:
 {
@@ -92,46 +118,44 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
     {
       "date": "${dates[0] || ""}",
       "date_label": "Hari 1 - Senin, 15 Maret 2026",
-      "notes": "Catatan khusus tentang hari ini atau null",
+      "notes": "Catatan khusus tentang hari ini (event, hari besar, cuaca, dll) atau null",
       "items": [
         {
           "time": "08:00",
           "activity": "Deskripsi aktivitas",
           "location": "Nama tempat",
           "status": "must",
-          "description": "Deskripsi singkat 1-2 kalimat.",
+          "description": "Deskripsi singkat 1-2 kalimat. Sertakan info hari besar/event jika relevan.",
           "estimated_cost": 50000,
           "rating": 4.5,
-          "place_id": null
+          "place_id": "place_id jika ada"
         }
       ]
     }
   ]
 }`;
 
-    console.log("Generating itinerary for", destination, "with", liked_places?.length || 0, "liked places");
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
       }),
     });
 
-    if (!aiRes.ok) {
-      const errText = await aiRes.text();
-      console.error("AI gateway error:", aiRes.status, errText);
-      throw new Error(`AI gateway error: ${aiRes.status}`);
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text();
+      console.error("OpenAI error:", openaiRes.status, errText);
+      throw new Error(`OpenAI API error: ${openaiRes.status}`);
     }
 
-    const aiData = await aiRes.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    const openaiData = await openaiRes.json();
+    const content = openaiData.choices?.[0]?.message?.content || "";
 
     let itinerary;
     try {
@@ -145,7 +169,23 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
       }
     }
 
-    console.log("Generated itinerary with", itinerary.days?.length || 0, "days");
+    // Match photo URLs
+    const allPlaces = [...topPlaces, ...topFood];
+    if (itinerary.days) {
+      for (const day of itinerary.days) {
+        for (const item of day.items || []) {
+          const matched = allPlaces.find(
+            (p: any) =>
+              p.name.toLowerCase().includes(item.location?.toLowerCase() || "") ||
+              item.location?.toLowerCase().includes(p.name.toLowerCase())
+          );
+          if (matched) {
+            item.photo_url = matched.photo_url;
+            item.place_id = item.place_id || matched.place_id;
+          }
+        }
+      }
+    }
 
     return new Response(JSON.stringify({ itinerary }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
