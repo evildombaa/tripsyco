@@ -102,14 +102,14 @@ const DateStrip = ({ selectedDate, onSelectDate, datesWithPlans, onAddDay }: Pro
                 className={`
                   relative flex flex-col items-center justify-center shrink-0 w-[3.25rem] h-[4rem] rounded-2xl transition-all duration-200
                   ${isSelected
-                    ? "bg-foreground text-background shadow-lg scale-[1.08]"
+                    ? "bg-[#4db3d7] text-white shadow-lg scale-[1.08]"
                     : today
                       ? "bg-primary/10 text-primary ring-1 ring-primary/30 hover:bg-primary/20"
                       : "hover:bg-muted/80 text-muted-foreground hover:text-foreground"
                   }
                 `}
               >
-                <span className={`text-[10px] font-medium leading-none mb-0.5 ${isSelected ? "text-background/60" : ""}`}>
+                <span className={`text-[10px] font-medium leading-none mb-0.5 ${isSelected ? "text-white/70" : ""}`}>
                   {dayName}
                 </span>
                 <span className={`text-base font-bold leading-none ${today && !isSelected ? "text-primary" : ""}`}>
@@ -120,7 +120,7 @@ const DateStrip = ({ selectedDate, onSelectDate, datesWithPlans, onAddDay }: Pro
                   <span className="absolute bottom-1.5 h-1 w-1 rounded-full bg-primary" />
                 )}
                 {hasPlan && isSelected && (
-                  <span className="absolute bottom-1.5 h-1 w-1 rounded-full bg-background/60" />
+                  <span className="absolute bottom-1.5 h-1 w-1 rounded-full bg-white/70" />
                 )}
               </button>
             );
