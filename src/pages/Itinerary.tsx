@@ -20,6 +20,7 @@ const Itinerary = () => {
   const [budget, setBudget] = useState(0);
   const [destination, setDestination] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
@@ -134,6 +135,37 @@ const Itinerary = () => {
     setMode("manual");
     toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
+
+  const handleDelete = async () => {
+    if (!itineraryId) {
+      // Nothing saved yet — just reset local state
+      setTripName("Perjalanan Baru");
+      setBudget(0);
+      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      toast({ title: "Itinerary dibersihkan" });
+      return;
+    }
+    if (!confirm("Hapus itinerary ini secara permanen? Tindakan ini tidak bisa dibatalkan.")) return;
+    setDeleting(true);
+    try {
+      await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
+      await supabase.from("itinerary_feedback").delete().eq("itinerary_id", itineraryId);
+      await supabase.from("itinerary_preferences").delete().eq("itinerary_id", itineraryId);
+      await supabase.from("itineraries").delete().eq("id", itineraryId);
+      setItineraryId(null);
+      setTripName("Perjalanan Baru");
+      setBudget(0);
+      setDestination("");
+      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      setMode("manual");
+      toast({ title: "Itinerary dihapus 🗑️" });
+    } catch (error: any) {
+      toast({ title: "Gagal menghapus", description: error.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     if (budget <= 0) {
@@ -257,6 +289,8 @@ const Itinerary = () => {
                 destination={destination}
                 onSave={handleSave}
                 saving={saving}
+                onDelete={handleDelete}
+                deleting={deleting}
               />
               <div className="max-w-3xl mx-auto mt-8">
                 <Button variant="outline" className="w-full" onClick={handleFinish}>
