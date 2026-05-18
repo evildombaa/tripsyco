@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Plus, MapPin, Trash2, CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,13 +30,27 @@ interface Props {
   destination: string;
   onSave?: () => void;
   saving?: boolean;
+  onDelete?: () => void;
+  deleting?: boolean;
 }
 
-const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving }: Props) => {
+const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting }: Props) => {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [selectedItem, setSelectedItem] = useState<{ dayId: string; item: EnhancedItem } | null>(null);
   const [addDialogDayId, setAddDialogDayId] = useState<string | null>(null);
   const { toast } = useToast();
+  const didInitDate = useRef(false);
+
+  // Auto-jump to the first saved day's date on initial load so saved data is visible
+  useEffect(() => {
+    if (didInitDate.current) return;
+    const firstWithDate = days.find((d) => d.date);
+    if (firstWithDate) {
+      const [y, m, dd] = firstWithDate.date.split("-").map(Number);
+      setSelectedDate(new Date(y, m - 1, dd));
+      didInitDate.current = true;
+    }
+  }, [days]);
 
   const totalEstimatedCost = days.reduce(
     (sum, day) => sum + day.items.reduce((s, item) => s + (item.estimated_cost || 0), 0),
@@ -138,9 +152,22 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
           />
         </div>
         {onSave && (
-          <Button onClick={onSave} disabled={saving} className="ml-4 shrink-0 gradient-primary border-0 shadow-md hover:shadow-lg transition-all">
-            {saving ? "Menyimpan..." : "Simpan"}
-          </Button>
+          <div className="ml-4 shrink-0 flex items-center gap-2">
+            {onDelete && (
+              <Button
+                variant="outline"
+                onClick={onDelete}
+                disabled={deleting || saving}
+                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                {deleting ? "Menghapus..." : "Hapus"}
+              </Button>
+            )}
+            <Button onClick={onSave} disabled={saving} className="gradient-primary border-0 shadow-md hover:shadow-lg transition-all">
+              {saving ? "Menyimpan..." : "Simpan"}
+            </Button>
+          </div>
         )}
       </div>
 
