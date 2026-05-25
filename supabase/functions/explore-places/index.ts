@@ -6,6 +6,52 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Build a reliable image URL via Wikimedia Special:FilePath
+function commonsImageUrl(filename: string, width = 800): string {
+  const cleaned = filename.replace(/^File:/i, "").trim().replace(/ /g, "_");
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(cleaned)}?width=${width}`;
+}
+
+function filenameFromUploadUrl(url: string): string | null {
+  const thumbMatch = url.match(/\/commons\/thumb\/[^/]+\/[^/]+\/([^/]+\.(?:jpg|jpeg|png|webp))\//i);
+  if (thumbMatch) return decodeURIComponent(thumbMatch[1]);
+  const origMatch = url.match(/\/commons\/[^/]+\/[^/]+\/([^/]+\.(?:jpg|jpeg|png|webp))$/i);
+  if (origMatch) return decodeURIComponent(origMatch[1]);
+  return null;
+}
+
+// Cache wiki photo lookups per cold start
+const wikiPhotoCache = new Map<string, string | null>();
+
+async function fetchWikiMainPhoto(name: string): Promise<string | null> {
+  if (wikiPhotoCache.has(name)) return wikiPhotoCache.get(name) ?? null;
+  try {
+    for (const lang of ["id", "en"]) {
+      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
+      const sRes = await fetch(searchUrl);
+      const sData = await sRes.json();
+      const title = sData.query?.search?.[0]?.title;
+      if (!title) continue;
+      const detailUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
+      const dRes = await fetch(detailUrl);
+      const dData = await dRes.json();
+      const pages = dData.query?.pages;
+      const page = pages ? Object.values(pages)[0] as any : null;
+      const src = page?.thumbnail?.source;
+      if (src && !src.includes(".svg")) {
+        const fname = filenameFromUploadUrl(src);
+        const url = fname ? commonsImageUrl(fname, 800) : src;
+        wikiPhotoCache.set(name, url);
+        return url;
+      }
+    }
+  } catch (e) {
+    console.error("wiki photo fetch error", name, e);
+  }
+  wikiPhotoCache.set(name, null);
+  return null;
+}
+
 // Curated Indonesian destinations with specific Unsplash images
 const curatedPlaces = [
   { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", lat: -8.6212, lng: 115.0868, photoUrl: "https://images.unsplash.com/photo-1604999333679-b86d54738315?w=800&q=80" },
@@ -82,6 +128,14 @@ serve(async (req) => {
     if (results.length === 0) {
       results = curatedPlaces;
     }
+
+    // Enrich with Wikipedia main image so cards match the detail page hero
+    results = await Promise.all(
+      results.map(async (p) => {
+        const wikiUrl = await fetchWikiMainPhoto(p.name);
+        return wikiUrl ? { ...p, photoUrl: wikiUrl } : p;
+      })
+    );
 
     return new Response(JSON.stringify({ places: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
