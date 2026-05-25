@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import tripsyLogo from "@/assets/tripsy-logo.png";
+import authBg from "@/assets/auth-bg.jpg";
 import { Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -63,25 +64,43 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center px-4 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl -translate-y-1/2 translate-x-1/3" />
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-accent/30 blur-3xl translate-y-1/2 -translate-x-1/3" />
+    <div
+      className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-cover bg-center"
+      style={{ backgroundImage: `url(${authBg})` }}
+    >
+      {/* Subtle overlay for legibility */}
+      <div className="absolute inset-0 bg-black/20" />
+
+      {/* Top bar */}
+      <Link
+        to="/"
+        className="absolute top-5 left-5 inline-flex items-center gap-1.5 text-sm text-white/90 hover:text-white transition-colors z-20 drop-shadow"
+      >
+        <ArrowLeft className="h-4 w-4" /> Kembali ke Beranda
+      </Link>
+
+      <button
+        onClick={() => {
+          setIsSignUp(!isSignUp);
+          setName("");
+          setEmail("");
+          setPassword("");
+        }}
+        className="absolute top-5 right-5 z-20 px-5 py-1.5 rounded-md bg-[#2c3fa8] text-white text-sm font-semibold shadow-md hover:bg-[#243490] transition-colors"
+      >
+        {isSignUp ? "Masuk" : "Daftar"}
+      </button>
 
       <div className="w-full max-w-md relative z-10 animate-fade-in">
-        <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
-          <ArrowLeft className="h-4 w-4" /> Kembali ke Beranda
-        </Link>
-
-        <div className="bg-card rounded-2xl shadow-lg border border-border/50 p-8">
-          <div className="flex flex-col items-center mb-8">
-            <div className="h-14 w-14 rounded-2xl gradient-primary flex items-center justify-center shadow-md mb-4">
-              <img src={tripsyLogo} alt="Tripsy logo" className="h-8 w-8" />
+        <div className="rounded-3xl p-8 border border-white/30 bg-white/15 backdrop-blur-2xl shadow-2xl">
+          <div className="flex flex-col items-center mb-6">
+            <div className="h-16 w-16 rounded-2xl bg-white/90 flex items-center justify-center shadow-lg mb-4">
+              <img src={tripsyLogo} alt="Tripsy logo" className="h-10 w-10" />
             </div>
-            <h1 className="text-2xl font-bold font-serif text-foreground">
+            <h1 className="text-3xl font-bold font-serif text-white drop-shadow">
               {isSignUp ? "Buat Akun Baru" : "Selamat Datang"}
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">
+            <p className="text-white/80 text-sm mt-1 text-center">
               {isSignUp
                 ? "Daftar untuk mulai merencanakan perjalananmu"
                 : "Masuk untuk melanjutkan perjalananmu"}
@@ -90,8 +109,8 @@ const Auth = () => {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-foreground">Nama Lengkap</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-white font-medium">Nama Lengkap</Label>
                 <Input
                   id="name"
                   placeholder="Masukkan nama lengkap"
@@ -99,13 +118,13 @@ const Auth = () => {
                   onChange={(e) => setName(e.target.value)}
                   required={isSignUp}
                   maxLength={100}
-                  className="h-11"
+                  className="h-11 bg-white/15 border-white/25 text-white placeholder:text-white/60 backdrop-blur-md focus-visible:ring-white/40"
                 />
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">Email</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-white font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -114,12 +133,12 @@ const Auth = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 maxLength={255}
-                className="h-11"
+                className="h-11 bg-white/15 border-white/25 text-white placeholder:text-white/60 backdrop-blur-md focus-visible:ring-white/40"
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-foreground">Password</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-white font-medium">Password</Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -130,40 +149,27 @@ const Auth = () => {
                   required
                   minLength={6}
                   maxLength={72}
-                  className="h-11"
+                  className="h-11 bg-white/15 border-white/25 text-white placeholder:text-white/60 backdrop-blur-md focus-visible:ring-white/40 pr-10"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 hover:text-white transition-colors"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            <Button type="submit" className="w-full h-11 gradient-primary border-0 shadow-md hover:shadow-lg transition-all font-semibold" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full h-12 mt-2 bg-[#2c3fa8] hover:bg-[#243490] text-white border-0 shadow-lg transition-all font-semibold text-base"
+              disabled={loading}
+            >
               {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               {isSignUp ? "Daftar" : "Masuk"}
             </Button>
           </form>
-
-          <div className="mt-8 text-center text-sm">
-            <span className="text-muted-foreground">
-              {isSignUp ? "Sudah punya akun?" : "Belum punya akun?"}
-            </span>{" "}
-            <button
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setName("");
-                setEmail("");
-                setPassword("");
-              }}
-              className="text-primary font-semibold hover:underline"
-            >
-              {isSignUp ? "Masuk" : "Daftar"}
-            </button>
-          </div>
         </div>
       </div>
     </div>
