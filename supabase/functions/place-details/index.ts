@@ -61,11 +61,18 @@ async function fetchWikipediaData(name: string) {
 // Search Wikimedia Commons for photos of a place (free, no API key)
 async function fetchCommonsPhotos(name: string): Promise<string[]> {
   try {
-    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srnamespace=6&srlimit=10&format=json&origin=*`;
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srnamespace=6&srlimit=20&format=json&origin=*`;
     const searchRes = await fetch(searchUrl);
     const searchData = await searchRes.json();
 
-    const fileNames = (searchData.query?.search || [])
+    // Normalize the search name into tokens for relevance filtering
+    const nameTokens = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length > 2 && !["dan", "the", "and", "candi", "pantai", "gunung", "danau", "pulau"].includes(t));
+
+    const allResults = (searchData.query?.search || [])
       .map((r: any) => r.title as string)
       .filter((t: string) => {
         const lower = t.toLowerCase();
@@ -74,9 +81,22 @@ async function fetchCommonsPhotos(name: string): Promise<string[]> {
           !lower.includes("logo") &&
           !lower.includes("icon") &&
           !lower.includes("flag") &&
-          !lower.includes("location");
-      })
-      .slice(0, 6);
+          !lower.includes("location") &&
+          !lower.includes("diagram") &&
+          !lower.includes("plan");
+      });
+
+    // Prioritize files whose name actually contains the place name tokens
+    const scored = allResults.map((t: string) => {
+      const lower = t.toLowerCase();
+      const score = nameTokens.reduce((acc, tok) => acc + (lower.includes(tok) ? 1 : 0), 0);
+      return { title: t, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const fileNames = scored
+      .filter((s) => nameTokens.length === 0 || s.score > 0)
+      .slice(0, 6)
+      .map((s) => s.title);
 
     if (fileNames.length === 0) return [];
 
