@@ -6,6 +6,23 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Build a reliable image URL via Special:FilePath which handles thumbnailing for any filename
+function commonsImageUrl(filename: string, width = 1200): string {
+  const cleaned = filename.replace(/^File:/i, "").trim().replace(/ /g, "_");
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(cleaned)}?width=${width}`;
+}
+
+// Extract original filename from a Wikimedia upload URL (thumb or original)
+function filenameFromUploadUrl(url: string): string | null {
+  // thumb: .../commons/thumb/x/yy/FILENAME.ext/NNNpx-FILENAME.ext
+  const thumbMatch = url.match(/\/commons\/thumb\/[^/]+\/[^/]+\/([^/]+\.(?:jpg|jpeg|png|webp))\//i);
+  if (thumbMatch) return decodeURIComponent(thumbMatch[1]);
+  // original: .../commons/x/yy/FILENAME.ext
+  const origMatch = url.match(/\/commons\/[^/]+\/[^/]+\/([^/]+\.(?:jpg|jpeg|png|webp))$/i);
+  if (origMatch) return decodeURIComponent(origMatch[1]);
+  return null;
+}
+
 // Search Wikipedia for a place and get its extract + main image
 async function fetchWikipediaData(name: string) {
   try {
@@ -40,8 +57,9 @@ async function fetchWikipediaData(name: string) {
     // Get high-res thumbnail
     const photos: string[] = [];
     if (page.thumbnail?.source && !page.thumbnail.source.includes(".svg")) {
-      const hiRes = page.thumbnail.source.replace(/\/\d+px-/, "/1200px-");
-      photos.push(hiRes);
+      const fname = filenameFromUploadUrl(page.thumbnail.source);
+      if (fname) photos.push(commonsImageUrl(fname, 1200));
+      else photos.push(page.thumbnail.source);
     }
 
     return {
@@ -109,12 +127,18 @@ async function fetchCommonsPhotos(name: string): Promise<string[]> {
 
     if (!pages) return [];
 
-    const photos: string[] = [];
+    // Preserve the original (sorted) order from fileNames
+    const orderMap = new Map<string, number>();
+    fileNames.forEach((f, i) => orderMap.set(f, i));
+    const entries: { title: string; url: string }[] = [];
     for (const p of Object.values(pages) as any[]) {
-      const url = p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url;
-      if (url) photos.push(url);
+      const sourceUrl = p.imageinfo?.[0]?.url;
+      if (!sourceUrl || !p.title) continue;
+      const fname = filenameFromUploadUrl(sourceUrl) || (p.title as string).replace(/^File:/i, "");
+      entries.push({ title: p.title, url: commonsImageUrl(fname, 1200) });
     }
-    return photos;
+    entries.sort((a, b) => (orderMap.get(a.title) ?? 99) - (orderMap.get(b.title) ?? 99));
+    return entries.map((e) => e.url);
   } catch (e) {
     console.error("Commons API error:", e);
     return [];
