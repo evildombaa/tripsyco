@@ -23,6 +23,32 @@ function filenameFromUploadUrl(url: string): string | null {
 // Cache wiki photo lookups per cold start
 const wikiPhotoCache = new Map<string, string | null>();
 
+// Replicate exactly what place-details returns in photos[], then return photos[0]
+async function fetchWikiMainPhoto(name: string): Promise<string | null> {
+  try {
+    for (const lang of ["id", "en"]) {
+      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
+      const sRes = await fetch(searchUrl);
+      const sData = await sRes.json();
+      const title = sData.query?.search?.[0]?.title;
+      if (!title) continue;
+      const detailUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
+      const dRes = await fetch(detailUrl);
+      const dData = await dRes.json();
+      const pages = dData.query?.pages;
+      const page = pages ? Object.values(pages)[0] as any : null;
+      const src = page?.thumbnail?.source;
+      if (src && !src.includes(".svg")) {
+        const fname = filenameFromUploadUrl(src);
+        return fname ? commonsImageUrl(fname, 800) : src;
+      }
+    }
+  } catch (e) {
+    console.error("wiki photo fetch error", name, e);
+  }
+  return null;
+}
+
 async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
   try {
     const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srnamespace=6&srlimit=20&format=json&origin=*`;
@@ -60,34 +86,14 @@ async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
 
 async function fetchHeroPhoto(name: string): Promise<string | null> {
   if (wikiPhotoCache.has(name)) return wikiPhotoCache.get(name) ?? null;
-  // Try Wikipedia main image first (matches detail page hero order)
-  try {
-    for (const lang of ["id", "en"]) {
-      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
-      const sRes = await fetch(searchUrl);
-      const sData = await sRes.json();
-      const title = sData.query?.search?.[0]?.title;
-      if (!title) continue;
-      const detailUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
-      const dRes = await fetch(detailUrl);
-      const dData = await dRes.json();
-      const pages = dData.query?.pages;
-      const page = pages ? Object.values(pages)[0] as any : null;
-      const src = page?.thumbnail?.source;
-      if (src && !src.includes(".svg")) {
-        const fname = filenameFromUploadUrl(src);
-        const url = fname ? commonsImageUrl(fname, 800) : src;
-        wikiPhotoCache.set(name, url);
-        return url;
-      }
-    }
-  } catch (e) {
-    console.error("wiki photo fetch error", name, e);
-  }
-  // Fallback to Commons first relevant photo (same as detail page secondary source)
-  const commons = await fetchCommonsFirstPhoto(name);
-  wikiPhotoCache.set(name, commons);
-  return commons;
+  const [wiki, commons] = await Promise.all([
+    fetchWikiMainPhoto(name),
+    fetchCommonsFirstPhoto(name),
+  ]);
+  // Same precedence as place-details photos[]: Wikipedia main first, then Commons
+  const url = wiki || commons || null;
+  wikiPhotoCache.set(name, url);
+  return url;
 }
 
 // Curated Indonesian destinations with specific Unsplash images
