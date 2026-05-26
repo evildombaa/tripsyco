@@ -23,8 +23,44 @@ function filenameFromUploadUrl(url: string): string | null {
 // Cache wiki photo lookups per cold start
 const wikiPhotoCache = new Map<string, string | null>();
 
-async function fetchWikiMainPhoto(name: string): Promise<string | null> {
+async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
+  try {
+    const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srnamespace=6&srlimit=20&format=json&origin=*`;
+    const res = await fetch(searchUrl);
+    const data = await res.json();
+    const nameTokens = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t.length > 2 && !["dan", "the", "and", "candi", "pantai", "gunung", "danau", "pulau"].includes(t));
+    const results = (data.query?.search || [])
+      .map((r: any) => r.title as string)
+      .filter((t: string) => {
+        const l = t.toLowerCase();
+        return /\.(jpg|jpeg|png|webp)$/i.test(t) &&
+          !l.includes("map") && !l.includes("logo") && !l.includes("icon") &&
+          !l.includes("flag") && !l.includes("location") &&
+          !l.includes("diagram") && !l.includes("plan");
+      });
+    const scored = results.map((t: string) => {
+      const l = t.toLowerCase();
+      const score = nameTokens.reduce((acc, tok) => acc + (l.includes(tok) ? 1 : 0), 0);
+      return { title: t, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const top = scored.filter((s) => nameTokens.length === 0 || s.score > 0)[0];
+    if (!top) return null;
+    const fname = top.title.replace(/^File:/i, "");
+    return commonsImageUrl(fname, 800);
+  } catch (e) {
+    console.error("commons first photo error", name, e);
+    return null;
+  }
+}
+
+async function fetchHeroPhoto(name: string): Promise<string | null> {
   if (wikiPhotoCache.has(name)) return wikiPhotoCache.get(name) ?? null;
+  // Try Wikipedia main image first (matches detail page hero order)
   try {
     for (const lang of ["id", "en"]) {
       const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
@@ -48,8 +84,10 @@ async function fetchWikiMainPhoto(name: string): Promise<string | null> {
   } catch (e) {
     console.error("wiki photo fetch error", name, e);
   }
-  wikiPhotoCache.set(name, null);
-  return null;
+  // Fallback to Commons first relevant photo (same as detail page secondary source)
+  const commons = await fetchCommonsFirstPhoto(name);
+  wikiPhotoCache.set(name, commons);
+  return commons;
 }
 
 // Curated Indonesian destinations with specific Unsplash images
@@ -129,11 +167,11 @@ serve(async (req) => {
       results = curatedPlaces;
     }
 
-    // Enrich with Wikipedia main image so cards match the detail page hero
+    // Use the same image source as the detail page hero (Wikipedia main → Commons fallback)
     results = await Promise.all(
       results.map(async (p) => {
-        const wikiUrl = await fetchWikiMainPhoto(p.name);
-        return wikiUrl ? { ...p, photoUrl: wikiUrl } : p;
+        const heroUrl = await fetchHeroPhoto(p.name);
+        return heroUrl ? { ...p, photoUrl: heroUrl } : p;
       })
     );
 
