@@ -90,8 +90,8 @@ async function fetchHeroPhoto(name: string): Promise<string | null> {
     fetchWikiMainPhoto(name),
     fetchCommonsFirstPhoto(name),
   ]);
-  // Same precedence as place-details photos[]: Wikipedia main first, then Commons
-  const url = wiki || commons || null;
+  // Prefer Commons relevant photo (matches what users actually see in the detail gallery)
+  const url = commons || wiki || null;
   wikiPhotoCache.set(name, url);
   return url;
 }
