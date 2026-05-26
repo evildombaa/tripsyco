@@ -161,10 +161,10 @@ serve(async (req) => {
     console.log("Wikipedia:", wikiData ? `Found: ${wikiData.title}` : "Not found");
     console.log("Commons photos:", commonsPhotos.length);
 
-    // Combine: Wikipedia main image first, then Commons photos
+    // Combine: Commons relevant photos first (matches Explore card), then Wikipedia main
     const allPhotos = [
-      ...(wikiData?.photos || []),
       ...commonsPhotos,
+      ...(wikiData?.photos || []),
     ];
     // Deduplicate
     const photos = [...new Set(allPhotos)].slice(0, 6);
