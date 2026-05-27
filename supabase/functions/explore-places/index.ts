@@ -12,6 +12,14 @@ function commonsImageUrl(filename: string, width = 800): string {
   return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(cleaned)}?width=${width}`;
 }
 
+function filenameFromUploadUrl(url: string): string | null {
+  const thumbMatch = url.match(/\/commons\/thumb\/[^/]+\/[^/]+\/([^/]+\.(?:jpg|jpeg|png|webp))\//i);
+  if (thumbMatch) return decodeURIComponent(thumbMatch[1]);
+  const origMatch = url.match(/\/commons\/[^/]+\/[^/]+\/([^/]+\.(?:jpg|jpeg|png|webp))$/i);
+  if (origMatch) return decodeURIComponent(origMatch[1]);
+  return null;
+}
+
 // Cache gallery photo lookups per cold start so each card keeps one stable image
 const galleryPhotoCache = new Map<string, string | null>();
 
@@ -50,9 +58,39 @@ async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
   }
 }
 
+async function fetchWikiGalleryPhoto(name: string): Promise<string | null> {
+  try {
+    for (const lang of ["id", "en"]) {
+      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
+      const searchRes = await fetch(searchUrl);
+      const searchData = await searchRes.json();
+      const title = searchData.query?.search?.[0]?.title;
+      if (!title) continue;
+
+      const detailUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
+      const detailRes = await fetch(detailUrl);
+      const detailData = await detailRes.json();
+      const pages = detailData.query?.pages;
+      const page = pages ? Object.values(pages)[0] as any : null;
+      const sourceUrl = page?.thumbnail?.source;
+      if (!sourceUrl || sourceUrl.includes(".svg")) continue;
+
+      const filename = filenameFromUploadUrl(sourceUrl);
+      return filename ? commonsImageUrl(filename, 800) : sourceUrl;
+    }
+  } catch (e) {
+    console.error("wiki gallery photo error", name, e);
+  }
+  return null;
+}
+
 async function fetchCardGalleryPhoto(name: string): Promise<string | null> {
   if (galleryPhotoCache.has(name)) return galleryPhotoCache.get(name) ?? null;
-  const url = await fetchCommonsFirstPhoto(name);
+  const [commons, wiki] = await Promise.all([
+    fetchCommonsFirstPhoto(name),
+    fetchWikiGalleryPhoto(name),
+  ]);
+  const url = commons || wiki || null;
   galleryPhotoCache.set(name, url);
   return url;
 }
