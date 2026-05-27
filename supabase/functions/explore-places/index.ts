@@ -20,34 +20,27 @@ function filenameFromUploadUrl(url: string): string | null {
   return null;
 }
 
-// Cache wiki photo lookups per cold start
-const wikiPhotoCache = new Map<string, string | null>();
+// Cache gallery photo lookups per cold start so each card keeps one stable image
+const galleryPhotoCache = new Map<string, string | null>();
 
-// Replicate exactly what place-details returns in photos[], then return photos[0]
-async function fetchWikiMainPhoto(name: string): Promise<string | null> {
-  try {
-    for (const lang of ["id", "en"]) {
-      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
-      const sRes = await fetch(searchUrl);
-      const sData = await sRes.json();
-      const title = sData.query?.search?.[0]?.title;
-      if (!title) continue;
-      const detailUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
-      const dRes = await fetch(detailUrl);
-      const dData = await dRes.json();
-      const pages = dData.query?.pages;
-      const page = pages ? Object.values(pages)[0] as any : null;
-      const src = page?.thumbnail?.source;
-      if (src && !src.includes(".svg")) {
-        const fname = filenameFromUploadUrl(src);
-        return fname ? commonsImageUrl(fname, 800) : src;
-      }
-    }
-  } catch (e) {
-    console.error("wiki photo fetch error", name, e);
-  }
-  return null;
-}
+const curatedGalleryPhotoByName: Record<string, string> = {
+  "Tanah Lot": commonsImageUrl("Bali - Pura Tanah Lot, 20220827 0957 1108.jpg"),
+  "Tegallalang Rice Terrace": commonsImageUrl("Rice terraces in Tegallalang 1.jpg"),
+  "Candi Borobudur": commonsImageUrl("Borobudur - The many stupas.jpg"),
+  "Kawah Ijen": commonsImageUrl("Crater of Kawah Ijen volcano, East Java, Indonesia, 20220821 0611 9726.jpg"),
+  "Nusa Penida": commonsImageUrl("Diamond Beach in Nusa Penida, Bali.jpg"),
+  "Malioboro": commonsImageUrl("Malioboro di Malam Hari-2.jpg"),
+  "Pantai Kuta": commonsImageUrl("Kuta Beach Bali.jpg"),
+  "Taman Nasional Komodo": commonsImageUrl("Andhika bayu nugraha-taman nasional komodo (gili lawa).jpg"),
+  "Gunung Bromo": commonsImageUrl("Bromo and Semeru volcanoes, Java, Indonesia, 20220820 0717 9517.jpg"),
+  "Danau Toba": commonsImageUrl("Danau Toba - Sumut.jpg"),
+  "Ubud Monkey Forest": commonsImageUrl("Grooming, Macaca fascicularis, Ubud Monkey Forest, Bali, 20220822 1022 9965.jpg"),
+  "Raja Ampat": commonsImageUrl("Landscape of Raja Ampat; April 2014.jpg"),
+  "Prambanan": commonsImageUrl("Prambanan Java245.jpg"),
+  "Gili Trawangan": commonsImageUrl("Beach bar, Beach cafe, Gili Trawangan (island), Indonesia.jpg"),
+  "Pulau Weh": commonsImageUrl("Balohan Sea Port from the hill of east side of Weh Island, Sabang. Aceh.jpg"),
+  "Tana Toraja": commonsImageUrl("Tana Toraja Graves and House.jpg"),
+};
 
 async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
   try {
@@ -73,7 +66,7 @@ async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
       const score = nameTokens.reduce((acc, tok) => acc + (l.includes(tok) ? 1 : 0), 0);
       return { title: t, score };
     });
-    scored.sort((a, b) => b.score - a.score);
+    scored.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title));
     const top = scored.filter((s) => nameTokens.length === 0 || s.score > 0)[0];
     if (!top) return null;
     const fname = top.title.replace(/^File:/i, "");
@@ -84,36 +77,62 @@ async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
   }
 }
 
-async function fetchHeroPhoto(name: string): Promise<string | null> {
-  if (wikiPhotoCache.has(name)) return wikiPhotoCache.get(name) ?? null;
-  const [wiki, commons] = await Promise.all([
-    fetchWikiMainPhoto(name),
+async function fetchWikiGalleryPhoto(name: string): Promise<string | null> {
+  try {
+    for (const lang of ["id", "en"]) {
+      const searchUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srlimit=1&format=json&origin=*`;
+      const searchRes = await fetch(searchUrl);
+      const searchData = await searchRes.json();
+      const title = searchData.query?.search?.[0]?.title;
+      if (!title) continue;
+
+      const detailUrl = `https://${lang}.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
+      const detailRes = await fetch(detailUrl);
+      const detailData = await detailRes.json();
+      const pages = detailData.query?.pages;
+      const page = pages ? Object.values(pages)[0] as any : null;
+      const sourceUrl = page?.thumbnail?.source;
+      if (!sourceUrl || sourceUrl.includes(".svg")) continue;
+
+      const filename = filenameFromUploadUrl(sourceUrl);
+      return filename ? commonsImageUrl(filename, 800) : sourceUrl;
+    }
+  } catch (e) {
+    console.error("wiki gallery photo error", name, e);
+  }
+  return null;
+}
+
+async function fetchCardGalleryPhoto(name: string): Promise<string | null> {
+  if (curatedGalleryPhotoByName[name]) return curatedGalleryPhotoByName[name];
+  if (galleryPhotoCache.has(name)) return galleryPhotoCache.get(name) ?? null;
+  const [commons, wiki] = await Promise.all([
     fetchCommonsFirstPhoto(name),
+    fetchWikiGalleryPhoto(name),
   ]);
-  // Prefer Commons relevant photo (matches what users actually see in the detail gallery)
   const url = commons || wiki || null;
-  wikiPhotoCache.set(name, url);
+  galleryPhotoCache.set(name, url);
   return url;
 }
 
-// Curated Indonesian destinations with specific Unsplash images
+// Curated Indonesian destinations. Card images are filled only from the same Wikimedia Commons gallery source as detail pages.
 const curatedPlaces = [
-  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", lat: -8.6212, lng: 115.0868, photoUrl: "https://images.unsplash.com/photo-1604999333679-b86d54738315?w=800&q=80" },
-  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", rating: 4.5, userRatingsTotal: 32100, category: "Alam", lat: -8.4312, lng: 115.2792, photoUrl: "https://images.unsplash.com/photo-1528181304800-259b08848526?w=800&q=80" },
-  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", rating: 4.7, userRatingsTotal: 65000, category: "Budaya", lat: -7.6079, lng: 110.2038, photoUrl: "https://images.unsplash.com/photo-1518930259200-3e5b29f42096?w=800&q=80" },
-  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", lat: -8.0584, lng: 114.2420, photoUrl: "https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?w=800&q=80" },
-  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", rating: 4.8, userRatingsTotal: 12000, category: "Alam", lat: -8.7275, lng: 115.5444, photoUrl: "https://images.unsplash.com/photo-1577717903315-1691ae25ab3f?w=800&q=80" },
-  { name: "Malioboro", address: "Yogyakarta, Indonesia", rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", lat: -7.7925, lng: 110.3659, photoUrl: "https://images.unsplash.com/photo-1565967511849-76a60a516170?w=800&q=80" },
-  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", lat: -8.7180, lng: 115.1686, photoUrl: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=800&q=80" },
-  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", lat: -8.5500, lng: 119.4833, photoUrl: "https://images.unsplash.com/photo-1570789210967-2cac24634e00?w=800&q=80" },
-  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 28000, category: "Alam", lat: -7.9425, lng: 112.9530, photoUrl: "https://images.unsplash.com/photo-1589308078059-be1415eab4c3?w=800&q=80" },
-  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", rating: 4.7, userRatingsTotal: 15000, category: "Alam", lat: 2.6845, lng: 98.8588, photoUrl: "https://images.unsplash.com/photo-1571366343168-631c5bcca7a4?w=800&q=80" },
-  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", rating: 4.5, userRatingsTotal: 38000, category: "Alam", lat: -8.5181, lng: 115.2586, photoUrl: "https://images.unsplash.com/photo-1537953773345-d172ccf13cf1?w=800&q=80" },
-  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", rating: 4.9, userRatingsTotal: 5200, category: "Alam", lat: -0.2300, lng: 130.5167, photoUrl: "https://images.unsplash.com/photo-1516690561799-46d8f74f9abf?w=800&q=80" },
-  { name: "Prambanan", address: "Sleman, Yogyakarta, Indonesia", rating: 4.7, userRatingsTotal: 42000, category: "Budaya", lat: -7.7520, lng: 110.4914, photoUrl: "https://images.unsplash.com/photo-1596402184320-417e7178b2cd?w=800&q=80" },
-  { name: "Gili Trawangan", address: "Lombok, NTB, Indonesia", rating: 4.6, userRatingsTotal: 22000, category: "Relaksasi", lat: -8.3519, lng: 116.0363, photoUrl: "https://images.unsplash.com/photo-1573790387438-4da905039392?w=800&q=80" },
-  { name: "Pulau Weh", address: "Sabang, Aceh, Indonesia", rating: 4.7, userRatingsTotal: 4500, category: "Petualangan", lat: 5.8833, lng: 95.3167, photoUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=800&q=80" },
-  { name: "Tana Toraja", address: "Sulawesi Selatan, Indonesia", rating: 4.6, userRatingsTotal: 8200, category: "Budaya", lat: -3.0637, lng: 119.8506, photoUrl: "https://images.unsplash.com/photo-1596422846543-75c6fc197f07?w=800&q=80" },
+  { name: "Tanah Lot", address: "Tabanan, Bali, Indonesia", rating: 4.6, userRatingsTotal: 48200, category: "Budaya", lat: -8.6212, lng: 115.0868 },
+  { name: "Tegallalang Rice Terrace", address: "Tegallalang, Gianyar, Bali", rating: 4.5, userRatingsTotal: 32100, category: "Alam", lat: -8.4312, lng: 115.2792 },
+  { name: "Candi Borobudur", address: "Magelang, Jawa Tengah, Indonesia", rating: 4.7, userRatingsTotal: 65000, category: "Budaya", lat: -7.6079, lng: 110.2038 },
+  { name: "Kawah Ijen", address: "Banyuwangi, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 18500, category: "Petualangan", lat: -8.0584, lng: 114.2420 },
+  { name: "Nusa Penida", address: "Klungkung, Bali, Indonesia", rating: 4.8, userRatingsTotal: 12000, category: "Alam", lat: -8.7275, lng: 115.5444 },
+  { name: "Malioboro", address: "Yogyakarta, Indonesia", rating: 4.5, userRatingsTotal: 52000, category: "Kuliner", lat: -7.7925, lng: 110.3659 },
+  { name: "Pantai Kuta", address: "Kuta, Badung, Bali", rating: 4.4, userRatingsTotal: 41000, category: "Relaksasi", lat: -8.7180, lng: 115.1686 },
+  { name: "Taman Nasional Komodo", address: "Manggarai Barat, NTT, Indonesia", rating: 4.8, userRatingsTotal: 9500, category: "Petualangan", lat: -8.5500, lng: 119.4833 },
+  { name: "Gunung Bromo", address: "Probolinggo, Jawa Timur, Indonesia", rating: 4.7, userRatingsTotal: 28000, category: "Alam", lat: -7.9425, lng: 112.9530 },
+  { name: "Danau Toba", address: "Sumatera Utara, Indonesia", rating: 4.7, userRatingsTotal: 15000, category: "Alam", lat: 2.6845, lng: 98.8588 },
+  { name: "Ubud Monkey Forest", address: "Ubud, Gianyar, Bali", rating: 4.5, userRatingsTotal: 38000, category: "Alam", lat: -8.5181, lng: 115.2586 },
+  { name: "Raja Ampat", address: "Raja Ampat, Papua Barat, Indonesia", rating: 4.9, userRatingsTotal: 5200, category: "Alam", lat: -0.2300, lng: 130.5167 },
+  { name: "Prambanan", address: "Sleman, Yogyakarta, Indonesia", rating: 4.7, userRatingsTotal: 42000, category: "Budaya", lat: -7.7520, lng: 110.4914 },
+  { name: "Gili Trawangan", address: "Lombok, NTB, Indonesia", rating: 4.6, userRatingsTotal: 22000, category: "Relaksasi", lat: -8.3519, lng: 116.0363 },
+  { name: "Pulau Weh", address: "Sabang, Aceh, Indonesia", rating: 4.7, userRatingsTotal: 4500, category: "Petualangan", lat: 5.8833, lng: 95.3167 },
+  { name: "Tana Toraja", address: "Sulawesi Selatan, Indonesia", rating: 4.6, userRatingsTotal: 8200, category: "Budaya", lat: -3.0637, lng: 119.8506 },
 ];
 
 serve(async (req) => {
@@ -151,15 +170,14 @@ serve(async (req) => {
           const data = await res.json();
 
           if (data && data.length > 0) {
-            results = data.map((item: any, idx: number) => ({
+            results = data.map((item: any) => ({
               name: item.display_name.split(",")[0],
               address: item.display_name.split(",").slice(1, 3).join(",").trim() || "Indonesia",
               rating: 4.5,
-              userRatingsTotal: Math.floor(Math.random() * 10000) + 1000,
+              userRatingsTotal: 1000,
               category: category !== "Semua" && category ? category : "Campuran",
               lat: parseFloat(item.lat),
               lng: parseFloat(item.lon),
-              photoUrl: `https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80`,
             }));
           }
         } catch (e) {
@@ -173,11 +191,12 @@ serve(async (req) => {
       results = curatedPlaces;
     }
 
-    // Use the same image source as the detail page hero (Wikipedia main → Commons fallback)
+    // Use exactly one stable image from the same Commons gallery source used on the detail page.
+    // Do not keep old curated/Unsplash photos as fallback, so card images cannot switch back.
     results = await Promise.all(
       results.map(async (p) => {
-        const heroUrl = await fetchHeroPhoto(p.name);
-        return heroUrl ? { ...p, photoUrl: heroUrl } : p;
+        const galleryPhoto = await fetchCardGalleryPhoto(p.name);
+        return { ...p, photoUrl: galleryPhoto || undefined };
       })
     );
 
