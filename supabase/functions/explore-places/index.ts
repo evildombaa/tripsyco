@@ -112,15 +112,14 @@ serve(async (req) => {
           const data = await res.json();
 
           if (data && data.length > 0) {
-            results = data.map((item: any, idx: number) => ({
+            results = data.map((item: any) => ({
               name: item.display_name.split(",")[0],
               address: item.display_name.split(",").slice(1, 3).join(",").trim() || "Indonesia",
               rating: 4.5,
-              userRatingsTotal: Math.floor(Math.random() * 10000) + 1000,
+              userRatingsTotal: 1000,
               category: category !== "Semua" && category ? category : "Campuran",
               lat: parseFloat(item.lat),
               lng: parseFloat(item.lon),
-              photoUrl: `https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80`,
             }));
           }
         } catch (e) {
@@ -134,11 +133,12 @@ serve(async (req) => {
       results = curatedPlaces;
     }
 
-    // Use the same image source as the detail page hero (Wikipedia main → Commons fallback)
+    // Use exactly one stable image from the same Commons gallery source used on the detail page.
+    // Do not keep old curated/Unsplash photos as fallback, so card images cannot switch back.
     results = await Promise.all(
       results.map(async (p) => {
-        const heroUrl = await fetchHeroPhoto(p.name);
-        return heroUrl ? { ...p, photoUrl: heroUrl } : p;
+        const galleryPhoto = await fetchCardGalleryPhoto(p.name);
+        return { ...p, photoUrl: galleryPhoto || undefined };
       })
     );
 
