@@ -42,11 +42,22 @@ const DestinationCard = ({
   return (
     <button onClick={handleClick} className="group block text-left w-full">
       <div className="rounded-2xl overflow-hidden bg-card border border-border/50 hover-lift shadow-sm">
-        <div className="relative px-4 pt-4 flex items-center justify-between">
-          <Badge className="bg-muted text-foreground border-0 text-xs font-medium">
+        <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+          {photoUrl && (
+            <img
+              src={photoUrl}
+              alt={name}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              loading="lazy"
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-foreground/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <Badge className="absolute top-3.5 left-3.5 bg-card/80 backdrop-blur-sm text-foreground border-0 text-xs font-medium">
             {category}
           </Badge>
-          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="absolute top-3.5 right-3.5 bg-card/60 backdrop-blur-sm rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <ExternalLink className="h-3.5 w-3.5 text-foreground" />
+          </div>
         </div>
         <div className="p-4 space-y-2.5">
           <h3 className="font-bold text-foreground text-lg line-clamp-1">{name}</h3>
