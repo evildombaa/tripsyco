@@ -23,6 +23,25 @@ function filenameFromUploadUrl(url: string): string | null {
 // Cache gallery photo lookups per cold start so each card keeps one stable image
 const galleryPhotoCache = new Map<string, string | null>();
 
+const curatedGalleryPhotoByName: Record<string, string> = {
+  "Tanah Lot": commonsImageUrl("Bali - Pura Tanah Lot, 20220827 0957 1108.jpg"),
+  "Tegallalang Rice Terrace": commonsImageUrl("Rice terraces in Tegallalang 1.jpg"),
+  "Candi Borobudur": commonsImageUrl("Borobudur - The many stupas.jpg"),
+  "Kawah Ijen": commonsImageUrl("Crater of Kawah Ijen volcano, East Java, Indonesia, 20220821 0611 9726.jpg"),
+  "Nusa Penida": commonsImageUrl("Diamond Beach in Nusa Penida, Bali.jpg"),
+  "Malioboro": commonsImageUrl("Malioboro di Malam Hari-2.jpg"),
+  "Pantai Kuta": commonsImageUrl("Kuta Beach Bali.jpg"),
+  "Taman Nasional Komodo": commonsImageUrl("Andhika bayu nugraha-taman nasional komodo (gili lawa).jpg"),
+  "Gunung Bromo": commonsImageUrl("Bromo and Semeru volcanoes, Java, Indonesia, 20220820 0717 9517.jpg"),
+  "Danau Toba": commonsImageUrl("Danau Toba - Sumut.jpg"),
+  "Ubud Monkey Forest": commonsImageUrl("Grooming, Macaca fascicularis, Ubud Monkey Forest, Bali, 20220822 1022 9965.jpg"),
+  "Raja Ampat": commonsImageUrl("Landscape of Raja Ampat; April 2014.jpg"),
+  "Prambanan": commonsImageUrl("Prambanan Java245.jpg"),
+  "Gili Trawangan": commonsImageUrl("Beach bar, Beach cafe, Gili Trawangan (island), Indonesia.jpg"),
+  "Pulau Weh": commonsImageUrl("Balohan Sea Port from the hill of east side of Weh Island, Sabang. Aceh.jpg"),
+  "Tana Toraja": commonsImageUrl("Tana Toraja Graves and House.jpg"),
+};
+
 async function fetchCommonsFirstPhoto(name: string): Promise<string | null> {
   try {
     const searchUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&srnamespace=6&srlimit=20&format=json&origin=*`;
@@ -85,6 +104,7 @@ async function fetchWikiGalleryPhoto(name: string): Promise<string | null> {
 }
 
 async function fetchCardGalleryPhoto(name: string): Promise<string | null> {
+  if (curatedGalleryPhotoByName[name]) return curatedGalleryPhotoByName[name];
   if (galleryPhotoCache.has(name)) return galleryPhotoCache.get(name) ?? null;
   const [commons, wiki] = await Promise.all([
     fetchCommonsFirstPhoto(name),
