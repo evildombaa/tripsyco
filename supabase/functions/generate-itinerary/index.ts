@@ -6,6 +6,34 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function fetchWikipediaImage(title: string): Promise<string | null> {
+  for (const lang of ["id", "en"]) {
+    try {
+      const url = `https://${lang}.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=original|thumbnail&pithumbsize=600&redirects=1&titles=${encodeURIComponent(title)}&origin=*`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      const pages = data?.query?.pages || {};
+      for (const k of Object.keys(pages)) {
+        const p = pages[k];
+        const img = p?.original?.source || p?.thumbnail?.source;
+        if (img) return img;
+      }
+    } catch (_) { /* skip */ }
+  }
+  // Fallback: opensearch then pageimage
+  try {
+    const sUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(title)}&limit=1&format=json&origin=*`;
+    const sRes = await fetch(sUrl);
+    if (sRes.ok) {
+      const sData = await sRes.json();
+      const first = sData?.[1]?.[0];
+      if (first && first !== title) return await fetchWikipediaImage(first);
+    }
+  } catch (_) { /* skip */ }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -13,62 +41,27 @@ serve(async (req) => {
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
 
-    const GOOGLE_MAPS_API_KEY = Deno.env.get("GOOGLE_MAPS_API_KEY");
-    if (!GOOGLE_MAPS_API_KEY) throw new Error("GOOGLE_MAPS_API_KEY not configured");
+    const { preferences, feedback, dates: requestedDates } = await req.json();
+    const {
+      destination,
+      travel_purpose,
+      travel_purposes,
+      travel_companion,
+      travel_style,
+      budget,
+      budget_tier,
+      daily_hours_start,
+      daily_hours_end,
+    } = preferences || {};
 
-    const { preferences, feedback } = await req.json();
-    const { destination, travel_purpose, travel_companion, travel_style, budget, duration, departure_date } = preferences;
+    const dates: string[] = Array.isArray(requestedDates) ? requestedDates.filter(Boolean) : [];
+    if (dates.length === 0) throw new Error("No dates provided to generate");
 
-    let numDays = 1;
-    if (duration === "2–3 hari") numDays = 3;
-    else if (duration === "4–5 hari") numDays = 5;
-    else if (duration === "1 minggu") numDays = 7;
-    else if (duration === "1 hari") numDays = 1;
-    else {
-      const parsed = parseInt(duration);
-      numDays = isNaN(parsed) ? 3 : parsed;
-    }
-
-    // Calculate dates for each day
-    const dates: string[] = [];
-    if (departure_date) {
-      const startDate = new Date(departure_date);
-      for (let i = 0; i < numDays; i++) {
-        const d = new Date(startDate);
-        d.setDate(d.getDate() + i);
-        dates.push(d.toISOString().split("T")[0]);
-      }
-    }
-
-    // Search places
-    const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=tempat+wisata+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
-    const placesRes = await fetch(placesUrl);
-    const placesData = await placesRes.json();
-
-    const topPlaces = (placesData.results || []).slice(0, 20).map((p: any) => ({
-      name: p.name,
-      address: p.formatted_address,
-      rating: p.rating,
-      place_id: p.place_id,
-      photo_url: p.photos?.[0]?.photo_reference
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        : null,
-    }));
-
-    // Search restaurants
-    const foodUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=restoran+populer+${encodeURIComponent(destination)}&language=id&key=${GOOGLE_MAPS_API_KEY}`;
-    const foodRes = await fetch(foodUrl);
-    const foodData = await foodRes.json();
-
-    const topFood = (foodData.results || []).slice(0, 10).map((p: any) => ({
-      name: p.name,
-      address: p.formatted_address,
-      rating: p.rating,
-      place_id: p.place_id,
-      photo_url: p.photos?.[0]?.photo_reference
-        ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${p.photos[0].photo_reference}&key=${GOOGLE_MAPS_API_KEY}`
-        : null,
-    }));
+    const hoursStart = daily_hours_start || "08:00";
+    const hoursEnd = daily_hours_end || "21:00";
+    const purposes = Array.isArray(travel_purposes) && travel_purposes.length
+      ? travel_purposes.join(", ")
+      : (travel_purpose || "");
 
     let feedbackContext = "";
     if (feedback && Array.isArray(feedback) && feedback.length > 0) {
@@ -77,58 +70,43 @@ ${feedback.map((f: any, i: number) => `${i + 1}. Rating: ${f.rating}/5 | Pendapa
 Sesuaikan itinerary berdasarkan feedback di atas.`;
     }
 
-    const dateContext = dates.length > 0
-      ? `\nTANGGAL PERJALANAN: ${dates.join(", ")}
-PENTING - Pertimbangkan hal berikut untuk setiap tanggal:
-1. Hari besar nasional Indonesia (Idul Fitri, Natal, Nyepi, Waisak, Imlek, dll) yang jatuh pada tanggal-tanggal tersebut
-2. Event lokal atau festival di ${destination} pada tanggal tersebut
-3. Weekend vs weekday (kepadatan wisata berbeda)
-4. Jika ada hari besar: beberapa tempat wisata mungkin TUTUP, tempat ibadah bisa sangat ramai, harga bisa naik, lalu lintas bisa sangat macet
-5. Sesuaikan jadwal berdasarkan kondisi di atas (misalnya: hindari tempat ramai saat hari besar, rekomendasikan alternatif)`
-      : "";
+    const budgetLabel = budget_tier || (budget ? `Rp ${Number(budget).toLocaleString("id-ID")}` : "fleksibel");
 
     const prompt = `Kamu adalah travel planner profesional untuk wisata di Indonesia.
-Buatkan itinerary ${numDays} hari untuk perjalanan ke ${destination} dengan detail berikut:
-- Tujuan: ${travel_purpose}
+Buatkan itinerary untuk perjalanan ke ${destination} dengan detail berikut:
+- Tujuan utama: ${purposes}
 - Teman perjalanan: ${travel_companion}
 - Gaya perjalanan: ${travel_style}
-- Budget: Rp ${Number(budget).toLocaleString("id-ID")}
-${dateContext}
+- Budget: ${budgetLabel}
+- Jam aktif harian: ${hoursStart} - ${hoursEnd}
 
-Berikut tempat wisata populer di ${destination} (dari Google Maps):
-${topPlaces.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
+TANGGAL PERJALANAN (buat itinerary untuk SETIAP tanggal di bawah ini, tidak boleh kurang):
+${dates.join(", ")}
 
-Berikut restoran populer di ${destination}:
-${topFood.map((p: any) => `- ${p.name} (${p.address}, rating: ${p.rating}, place_id: ${p.place_id})`).join("\n")}
+PENTING:
+1. Untuk setiap tanggal, buat 4-7 aktivitas mulai dari ${hoursStart} sampai sekitar ${hoursEnd} (makan pagi, aktivitas utama, makan siang, aktivitas sore, makan malam, dst).
+2. Gunakan nama tempat NYATA dan POPULER di ${destination} yang kemungkinan besar memiliki halaman Wikipedia (gunakan nama resmi/baku, misal "Candi Borobudur", "Pantai Kuta", "Tanah Lot"). Field "location" HARUS berupa nama tempat saja agar bisa dicari di Wikipedia.
+3. Berikan status setiap aktivitas: "must" / "want" / "maybe".
+4. Berikan estimasi biaya dalam Rupiah (number).
+5. Pertimbangkan hari besar nasional Indonesia / event lokal pada tanggal tersebut dan sebutkan di description jika relevan.
+6. Pertimbangkan jarak dan waktu tempuh antar tempat.
 ${feedbackContext}
-
-PENTING: 
-1. Gunakan tempat-tempat dari daftar di atas sebanyak mungkin
-2. Berikan status untuk setiap aktivitas: "must", "want", atau "maybe"
-3. Berikan estimasi biaya setiap aktivitas dalam Rupiah
-4. Berikan deskripsi singkat untuk setiap aktivitas
-5. Pertimbangkan jarak dan waktu tempuh antar tempat
-6. Jika ada hari besar/event pada tanggal tertentu, SEBUTKAN di deskripsi aktivitas dan sesuaikan jadwal
-7. Berikan peringatan jika ada tempat yang kemungkinan tutup atau sangat ramai
 
 Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan struktur:
 {
   "trip_name": "Nama perjalanan yang menarik",
   "days": [
     {
-      "date": "${dates[0] || ""}",
-      "date_label": "Hari 1 - Senin, 15 Maret 2026",
-      "notes": "Catatan khusus tentang hari ini (event, hari besar, cuaca, dll) atau null",
+      "date": "YYYY-MM-DD",
+      "notes": "Catatan khusus hari ini atau null",
       "items": [
         {
           "time": "08:00",
-          "activity": "Deskripsi aktivitas",
-          "location": "Nama tempat",
+          "activity": "Judul aktivitas singkat",
+          "location": "Nama tempat resmi (untuk dicari di Wikipedia)",
           "status": "must",
-          "description": "Deskripsi singkat 1-2 kalimat. Sertakan info hari besar/event jika relevan.",
-          "estimated_cost": 50000,
-          "rating": 4.5,
-          "place_id": "place_id jika ada"
+          "description": "Deskripsi 1-2 kalimat.",
+          "estimated_cost": 50000
         }
       ]
     }
@@ -145,6 +123,7 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7,
+        response_format: { type: "json_object" },
       }),
     });
 
@@ -169,20 +148,19 @@ Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan 
       }
     }
 
-    // Match photo URLs
-    const allPlaces = [...topPlaces, ...topFood];
+    // Fetch Wikipedia photos for each item (with simple cache per request)
     if (itinerary.days) {
+      const cache = new Map<string, string | null>();
       for (const day of itinerary.days) {
         for (const item of day.items || []) {
-          const matched = allPlaces.find(
-            (p: any) =>
-              p.name.toLowerCase().includes(item.location?.toLowerCase() || "") ||
-              item.location?.toLowerCase().includes(p.name.toLowerCase())
-          );
-          if (matched) {
-            item.photo_url = matched.photo_url;
-            item.place_id = item.place_id || matched.place_id;
+          const loc = (item.location || "").trim();
+          if (!loc) continue;
+          if (!cache.has(loc)) {
+            cache.set(loc, await fetchWikipediaImage(loc));
           }
+          const img = cache.get(loc) || null;
+          item.image_url = img;
+          item.photo_url = img;
         }
       }
     }
