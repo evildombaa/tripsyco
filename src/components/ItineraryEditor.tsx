@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, MapPin, Trash2, CalendarDays } from "lucide-react";
+import { Plus, MapPin, Trash2, CalendarDays, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format, isSameDay } from "date-fns";
@@ -10,7 +10,8 @@ import ActivityCard, { EnhancedItem } from "@/components/itinerary/ActivityCard"
 import ActivityDetailDialog from "@/components/itinerary/ActivityDetailDialog";
 import SmartGeneratePopover from "@/components/itinerary/SmartGeneratePopover";
 import AddActivityDialog from "@/components/itinerary/AddActivityDialog";
-import DateStrip from "@/components/itinerary/DateStrip";
+import MonthCalendar from "@/components/itinerary/MonthCalendar";
+import { DateRange } from "react-day-picker";
 import { useToast } from "@/hooks/use-toast";
 
 export interface DayPlan {
@@ -32,9 +33,13 @@ interface Props {
   saving?: boolean;
   onDelete?: () => void;
   deleting?: boolean;
+  range?: DateRange;
+  onRangeChange?: (r: DateRange | undefined) => void;
+  onGenerate?: () => void;
+  generating?: boolean;
 }
 
-const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting }: Props) => {
+const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting, range, onRangeChange, onGenerate, generating }: Props) => {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [selectedItem, setSelectedItem] = useState<{ dayId: string; item: EnhancedItem } | null>(null);
   const [addDialogDayId, setAddDialogDayId] = useState<string | null>(null);
@@ -67,16 +72,13 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
   const handleSelectDate = (date: Date) => {
     setSelectedDate(date);
     const dateStr = format(date, "yyyy-MM-dd");
-    // Auto-create day if it doesn't exist
-    if (!days.find((d) => d.date === dateStr)) {
-      setDays([...days, { id: Date.now().toString(), date: dateStr, location: "", items: [] }]);
-    }
+    // Don't auto-create — only navigate. Days are created via generate or manual button.
   };
 
   const addDay = () => {
-    // Add current selected date if no plan exists
-    if (!currentDay) {
-      handleSelectDate(selectedDate);
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    if (!days.find((d) => d.date === dateStr)) {
+      setDays([...days, { id: Date.now().toString(), date: dateStr, location: "", items: [] }]);
     }
   };
 
@@ -176,15 +178,45 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
         <BudgetInput budget={budget} setBudget={setBudget} totalEstimatedCost={totalEstimatedCost} />
       </div>
 
-      {/* Date Strip */}
-      <div className="mb-6">
-        <DateStrip
-          selectedDate={selectedDate}
-          onSelectDate={handleSelectDate}
-          datesWithPlans={datesWithPlans}
-          onAddDay={addDay}
-        />
-      </div>
+      {/* Month Calendar */}
+      {onRangeChange && (
+        <div className="mb-4">
+          <MonthCalendar
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            range={range}
+            onRangeChange={onRangeChange}
+            datesWithPlans={datesWithPlans}
+          />
+        </div>
+      )}
+
+      {/* Generate button — visible when range with 2+ days is selected */}
+      {onGenerate && range?.from && range?.to && (
+        <div className="mb-6">
+          <Button
+            onClick={onGenerate}
+            disabled={generating}
+            className="w-full gradient-primary border-0 shadow-md h-12 text-base font-semibold"
+          >
+            <Sparkles className="h-5 w-5 mr-2" />
+            {generating ? "Membuat itinerary..." : "Generate Itinerary untuk rentang ini"}
+          </Button>
+        </div>
+      )}
+      {onGenerate && range?.from && !range?.to && (
+        <div className="mb-6">
+          <Button
+            onClick={onGenerate}
+            disabled={generating}
+            variant="outline"
+            className="w-full h-12 text-base font-semibold"
+          >
+            <Sparkles className="h-5 w-5 mr-2" />
+            {generating ? "Membuat itinerary..." : "Generate untuk 1 hari ini"}
+          </Button>
+        </div>
+      )}
 
       {/* Section title */}
       <div className="mb-4">
@@ -291,9 +323,9 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
           </div>
           <p className="font-semibold text-foreground mb-1">Belum ada rencana</p>
           <p className="text-sm text-muted-foreground mb-4">
-            Tambahkan destinasi dari halaman Jelajahi atau tekan +
+            Pilih rentang tanggal di kalender lalu generate, atau tambahkan rencana manual
           </p>
-          <Button variant="outline" onClick={() => handleSelectDate(selectedDate)} className="rounded-xl">
+          <Button variant="outline" onClick={addDay} className="rounded-xl">
             <Plus className="h-4 w-4 mr-2" /> Tambah Rencana
           </Button>
         </div>
