@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Loader2, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Navbar from "@/components/Navbar";
@@ -6,9 +6,13 @@ import Footer from "@/components/Footer";
 import ItineraryEditor, { DayPlan } from "@/components/ItineraryEditor";
 import ItineraryFeedback from "@/components/ItineraryFeedback";
 import ItineraryChatbot from "@/components/itinerary/ItineraryChatbot";
+import QuestionnaireGame, { QuestionnaireAnswers } from "@/components/itinerary/QuestionnaireGame";
+import ConflictDialog from "@/components/itinerary/ConflictDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { DateRange } from "react-day-picker";
+import { format, eachDayOfInterval } from "date-fns";
 
 
 type Mode = "loading" | "manual" | "editor" | "feedback";
@@ -22,6 +26,11 @@ const Itinerary = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
+  const [range, setRange] = useState<DateRange | undefined>();
+  const [showQuestionnaire, setShowQuestionnaire] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [conflictDates, setConflictDates] = useState<string[]>([]);
+  const [pendingAnswers, setPendingAnswers] = useState<QuestionnaireAnswers | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -90,23 +99,15 @@ const Itinerary = () => {
           return;
         }
       }
-      // No existing itinerary — go directly to manual editor
+      // No existing itinerary — empty editor
       setItineraryId(null);
       setTripName("Perjalanan Baru");
       setBudget(0);
-      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      setDays([]);
       setMode("manual");
     };
     load();
   }, [user]);
-
-  const handleManual = () => {
-    setItineraryId(null);
-    setTripName("Perjalanan Baru");
-    setBudget(0);
-    setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
-    setMode("manual");
-  };
 
   const handleFinish = () => {
     if (itineraryId) {
@@ -131,7 +132,7 @@ const Itinerary = () => {
     setTripName("Perjalanan Baru");
     setBudget(0);
     setDays([]);
-    setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+    setRange(undefined);
     setMode("manual");
     toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
   };
@@ -141,7 +142,8 @@ const Itinerary = () => {
       // Nothing saved yet — just reset local state
       setTripName("Perjalanan Baru");
       setBudget(0);
-      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      setDays([]);
+      setRange(undefined);
       toast({ title: "Itinerary dibersihkan" });
       return;
     }
@@ -156,7 +158,8 @@ const Itinerary = () => {
       setTripName("Perjalanan Baru");
       setBudget(0);
       setDestination("");
-      setDays([{ id: Date.now().toString(), date: "", location: "", items: [] }]);
+      setDays([]);
+      setRange(undefined);
       setMode("manual");
       toast({ title: "Itinerary dihapus 🗑️" });
     } catch (error: any) {
@@ -164,6 +167,227 @@ const Itinerary = () => {
     } finally {
       setDeleting(false);
     }
+  };
+
+  // Compute the list of dates in current range
+  const rangeDates = useMemo<string[]>(() => {
+    if (!range?.from) return [];
+    const to = range.to || range.from;
+    return eachDayOfInterval({ start: range.from, end: to }).map((d) => format(d, "yyyy-MM-dd"));
+  }, [range]);
+
+  const handleStartGenerate = () => {
+    if (!range?.from) {
+      toast({ title: "Pilih rentang tanggal terlebih dahulu", variant: "destructive" });
+      return;
+    }
+    setShowQuestionnaire(true);
+  };
+
+  const runGenerate = async (answers: QuestionnaireAnswers, datesToGenerate: string[], replaceExisting: boolean) => {
+    if (!user) return;
+    if (datesToGenerate.length === 0) {
+      toast({ title: "Tidak ada tanggal untuk di-generate" });
+      return;
+    }
+    setGenerating(true);
+    try {
+      // 1. Ensure itinerary record exists
+      let currentItinId = itineraryId;
+      if (!currentItinId) {
+        const { data: itin, error: itinErr } = await supabase
+          .from("itineraries")
+          .insert({ user_id: user.id, trip_name: `Perjalanan ke ${answers.destination}`, budget: answers.budget } as any)
+          .select()
+          .single();
+        if (itinErr) throw itinErr;
+        currentItinId = itin.id;
+        setItineraryId(currentItinId);
+        setTripName(itin.trip_name);
+        setBudget(answers.budget);
+      }
+
+      // 2. Save/upsert preferences
+      const prefPayload: any = {
+        itinerary_id: currentItinId,
+        destination: answers.destination,
+        travel_purpose: answers.travel_purposes[0] || "",
+        travel_purposes: answers.travel_purposes,
+        travel_purpose_other: answers.travel_purpose_other || null,
+        travel_companion: answers.travel_companion,
+        travel_companion_other: answers.travel_companion_other || null,
+        travel_style: answers.travel_style,
+        travel_style_other: answers.travel_style_other || null,
+        budget: String(answers.budget),
+        budget_tier: answers.budget_tier,
+        daily_hours_start: answers.daily_hours_start,
+        daily_hours_end: answers.daily_hours_end,
+        duration: `${rangeDates.length} hari`,
+      };
+      const { data: existingPref } = await supabase
+        .from("itinerary_preferences")
+        .select("id")
+        .eq("itinerary_id", currentItinId)
+        .limit(1);
+      if (existingPref && existingPref.length > 0) {
+        await supabase.from("itinerary_preferences").update(prefPayload).eq("itinerary_id", currentItinId);
+      } else {
+        await supabase.from("itinerary_preferences").insert(prefPayload);
+      }
+      setDestination(answers.destination);
+
+      // 3. If replacing, delete existing days that conflict
+      if (replaceExisting) {
+        const { data: conflictDays } = await supabase
+          .from("itinerary_days")
+          .select("id, trip_date")
+          .eq("itinerary_id", currentItinId)
+          .in("trip_date", datesToGenerate);
+        if (conflictDays && conflictDays.length) {
+          const ids = conflictDays.map((d: any) => d.id);
+          await supabase.from("itinerary_day_items").delete().in("day_id", ids);
+          await supabase.from("itinerary_days").delete().in("id", ids);
+        }
+      }
+
+      // 4. Fetch feedback for personalization
+      const { data: fbData } = await supabase
+        .from("itinerary_feedback")
+        .select("rating, feedback_text, suggestions")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(5);
+      const feedback = (fbData || []).map((f: any) => ({
+        rating: f.rating,
+        feedback: f.feedback_text,
+        suggestions: f.suggestions,
+      }));
+
+      // 5. Call edge function
+      const { data: genData, error: genErr } = await supabase.functions.invoke("generate-itinerary", {
+        body: {
+          preferences: {
+            destination: answers.destination,
+            travel_purposes: answers.travel_purposes,
+            travel_purpose: answers.travel_purposes.join(", "),
+            travel_companion: answers.travel_companion,
+            travel_style: answers.travel_style,
+            budget: answers.budget,
+            budget_tier: answers.budget_tier,
+            daily_hours_start: answers.daily_hours_start,
+            daily_hours_end: answers.daily_hours_end,
+          },
+          feedback,
+          dates: datesToGenerate,
+        },
+      });
+      if (genErr) throw genErr;
+      const itinerary = genData?.itinerary;
+      if (!itinerary?.days) throw new Error("Itinerary kosong dari AI");
+
+      // 6. Insert generated days + items
+      const newDays: DayPlan[] = [];
+      // Determine current max sort_order
+      const { data: existingAll } = await supabase
+        .from("itinerary_days")
+        .select("sort_order")
+        .eq("itinerary_id", currentItinId)
+        .order("sort_order", { ascending: false })
+        .limit(1);
+      let nextSort = ((existingAll?.[0] as any)?.sort_order ?? -1) + 1;
+
+      for (const day of itinerary.days) {
+        if (!datesToGenerate.includes(day.date)) continue; // safety
+        const { data: dayRow, error: dErr } = await supabase
+          .from("itinerary_days")
+          .insert({
+            itinerary_id: currentItinId,
+            sort_order: nextSort++,
+            trip_date: day.date,
+            location: answers.destination,
+          } as any)
+          .select()
+          .single();
+        if (dErr) throw dErr;
+        const insertedItems: any[] = [];
+        for (let j = 0; j < (day.items || []).length; j++) {
+          const it = day.items[j];
+          const { data: itemRow } = await supabase
+            .from("itinerary_day_items")
+            .insert({
+              day_id: dayRow.id,
+              time_slot: it.time || "",
+              activity: it.activity || "",
+              location: it.location || "",
+              sort_order: j,
+              status: it.status || "want",
+              description: it.description || "",
+              image_url: it.image_url || it.photo_url || null,
+              rating: it.rating || null,
+              place_id: it.place_id || null,
+              estimated_cost: it.estimated_cost || 0,
+            } as any)
+            .select()
+            .single();
+          if (itemRow) insertedItems.push(itemRow);
+        }
+        newDays.push({
+          id: dayRow.id,
+          date: day.date,
+          location: answers.destination,
+          items: insertedItems.map((i: any) => ({
+            id: i.id,
+            time: i.time_slot,
+            activity: i.activity,
+            location: i.location,
+            status: i.status || "want",
+            description: i.description || "",
+            image_url: i.image_url || null,
+            rating: i.rating || null,
+            place_id: i.place_id || null,
+            estimated_cost: i.estimated_cost || 0,
+          })),
+        });
+      }
+
+      // 7. Merge into state
+      const remaining = days.filter((d) => !datesToGenerate.includes(d.date));
+      setDays([...remaining, ...newDays].sort((a, b) => (a.date || "").localeCompare(b.date || "")));
+      setMode("editor");
+      toast({ title: "Itinerary berhasil dibuat! 🎉" });
+    } catch (e: any) {
+      console.error("Generate error:", e);
+      toast({ title: "Gagal generate", description: e?.message || "Coba lagi", variant: "destructive" });
+    } finally {
+      setGenerating(false);
+      setPendingAnswers(null);
+      setConflictDates([]);
+    }
+  };
+
+  const handleQuestionnaireComplete = async (answers: QuestionnaireAnswers) => {
+    setShowQuestionnaire(false);
+    const targetDates = rangeDates;
+    // Detect conflicts among current days
+    const existing = days.filter((d) => d.date && targetDates.includes(d.date) && d.items.length > 0);
+    if (existing.length > 0) {
+      setConflictDates(existing.map((d) => d.date));
+      setPendingAnswers(answers);
+      return;
+    }
+    await runGenerate(answers, targetDates, true);
+  };
+
+  const handleReplace = async () => {
+    if (!pendingAnswers) return;
+    await runGenerate(pendingAnswers, rangeDates, true);
+  };
+
+  const handleSkip = async () => {
+    if (!pendingAnswers) return;
+    const skipSet = new Set(conflictDates);
+    const targetDates = rangeDates.filter((d) => !skipSet.has(d));
+    await runGenerate(pendingAnswers, targetDates, false);
   };
 
   const handleSave = async () => {
@@ -291,6 +515,10 @@ const Itinerary = () => {
                 saving={saving}
                 onDelete={handleDelete}
                 deleting={deleting}
+                range={range}
+                onRangeChange={setRange}
+                onGenerate={handleStartGenerate}
+                generating={generating}
               />
               <div className="max-w-3xl mx-auto mt-8">
                 <Button variant="outline" className="w-full" onClick={handleFinish}>
@@ -310,6 +538,24 @@ const Itinerary = () => {
       {(mode === "manual" || mode === "editor") && (
         <ItineraryChatbot itineraryContext={itineraryContext} days={days} setDays={setDays} budget={budget} setBudget={setBudget} />
       )}
+
+      <QuestionnaireGame
+        open={showQuestionnaire}
+        onClose={() => setShowQuestionnaire(false)}
+        onComplete={handleQuestionnaireComplete}
+        numDays={rangeDates.length || 1}
+      />
+
+      <ConflictDialog
+        open={conflictDates.length > 0 && !generating}
+        conflictDates={conflictDates}
+        onReplace={handleReplace}
+        onSkip={handleSkip}
+        onCancel={() => {
+          setConflictDates([]);
+          setPendingAnswers(null);
+        }}
+      />
     </div>
   );
 };

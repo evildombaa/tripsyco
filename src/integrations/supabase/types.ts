@@ -173,7 +173,10 @@ export type Database = {
       itinerary_preferences: {
         Row: {
           budget: string
+          budget_tier: string | null
           created_at: string
+          daily_hours_end: string | null
+          daily_hours_start: string | null
           destination: string
           duration: string
           duration_other: string | null
@@ -183,12 +186,16 @@ export type Database = {
           travel_companion_other: string | null
           travel_purpose: string
           travel_purpose_other: string | null
+          travel_purposes: string[] | null
           travel_style: string
           travel_style_other: string | null
         }
         Insert: {
           budget?: string
+          budget_tier?: string | null
           created_at?: string
+          daily_hours_end?: string | null
+          daily_hours_start?: string | null
           destination?: string
           duration?: string
           duration_other?: string | null
@@ -198,12 +205,16 @@ export type Database = {
           travel_companion_other?: string | null
           travel_purpose?: string
           travel_purpose_other?: string | null
+          travel_purposes?: string[] | null
           travel_style?: string
           travel_style_other?: string | null
         }
         Update: {
           budget?: string
+          budget_tier?: string | null
           created_at?: string
+          daily_hours_end?: string | null
+          daily_hours_start?: string | null
           destination?: string
           duration?: string
           duration_other?: string | null
@@ -213,6 +224,7 @@ export type Database = {
           travel_companion_other?: string | null
           travel_purpose?: string
           travel_purpose_other?: string | null
+          travel_purposes?: string[] | null
           travel_style?: string
           travel_style_other?: string | null
         }
