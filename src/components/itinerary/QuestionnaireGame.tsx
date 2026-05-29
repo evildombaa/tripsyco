@@ -396,7 +396,7 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
         }
         @keyframes charSlideOut {
           from { transform: translateX(0); }
-          to { transform: translateX(-80vw); }
+          to { transform: translateX(80vw); }
         }
       `}</style>
     </div>
