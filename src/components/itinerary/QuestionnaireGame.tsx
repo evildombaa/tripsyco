@@ -32,6 +32,14 @@ interface Props {
 
 const characters = [char1, char2, char3, char4, char5];
 
+// Preload all character images once so swaps appear instantly (no progressive load).
+if (typeof window !== "undefined") {
+  characters.forEach((src) => {
+    const img = new Image();
+    img.src = src;
+  });
+}
+
 const HOURS_PRESETS = [
   { label: "06.30 - 22.00", start: "06:30", end: "22:00" },
   { label: "08.00 - 21.00", start: "08:00", end: "21:00" },
@@ -170,15 +178,17 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
       </button>
 
       {/* Character */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-[42%] sm:bottom-[38%] pointer-events-none">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-[42%] sm:bottom-[38%] pointer-events-none overflow-hidden">
         <img
           key={step}
           src={characters[step]}
           alt="Karakter"
+          decoding="sync"
+          loading="eager"
           className={cn(
-            "h-[55vh] sm:h-[65vh] max-h-[520px] w-auto object-contain drop-shadow-2xl transition-all duration-300 ease-out",
-            direction === "in" && "animate-[slideInRight_0.4s_ease-out]",
-            direction === "out-right" && "translate-x-[60vw] opacity-0"
+            "h-[55vh] sm:h-[65vh] max-h-[520px] w-auto object-contain drop-shadow-2xl",
+            direction === "in" && "animate-[charSlideIn_0.35s_cubic-bezier(0.22,1,0.36,1)_both]",
+            direction === "out-right" && "animate-[charSlideOut_0.28s_ease-in_both]"
           )}
         />
       </div>
@@ -380,9 +390,13 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
       </div>
 
       <style>{`
-        @keyframes slideInRight {
-          from { transform: translateX(60vw); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
+        @keyframes charSlideIn {
+          from { transform: translateX(80vw); }
+          to { transform: translateX(0); }
+        }
+        @keyframes charSlideOut {
+          from { transform: translateX(0); }
+          to { transform: translateX(80vw); }
         }
       `}</style>
     </div>
