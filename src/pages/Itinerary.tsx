@@ -169,6 +169,24 @@ const Itinerary = () => {
     }
   };
 
+  const handleDeleteDay = async (dayId: string, date: string) => {
+    setDeleting(true);
+    try {
+      // Only delete from DB if this day was persisted (UUID from supabase, not Date.now() string)
+      const isPersisted = /^[0-9a-f-]{36}$/i.test(dayId);
+      if (isPersisted && itineraryId) {
+        await supabase.from("itinerary_day_items").delete().eq("day_id", dayId);
+        await supabase.from("itinerary_days").delete().eq("id", dayId);
+      }
+      setDays(days.filter((d) => d.id !== dayId));
+      toast({ title: "Rencana hari ini dihapus 🗑️" });
+    } catch (error: any) {
+      toast({ title: "Gagal menghapus", description: error.message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Compute the list of dates in current range
   const rangeDates = useMemo<string[]>(() => {
     if (!range?.from) return [];
@@ -511,6 +529,7 @@ const Itinerary = () => {
                 saving={saving}
                 onDelete={handleDelete}
                 deleting={deleting}
+                onDeleteDay={handleDeleteDay}
                 range={range}
                 onRangeChange={setRange}
                 onGenerate={handleStartGenerate}
