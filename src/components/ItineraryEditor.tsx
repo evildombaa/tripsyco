@@ -1,14 +1,11 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Plus, MapPin, Trash2, CalendarDays, Sparkles } from "lucide-react";
+import { Plus, Trash2, CalendarDays, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
-import BudgetInput from "@/components/itinerary/BudgetInput";
 import ActivityCard, { EnhancedItem } from "@/components/itinerary/ActivityCard";
 import ActivityDetailDialog from "@/components/itinerary/ActivityDetailDialog";
-import SmartGeneratePopover from "@/components/itinerary/SmartGeneratePopover";
 import AddActivityDialog from "@/components/itinerary/AddActivityDialog";
 import MonthCalendar from "@/components/itinerary/MonthCalendar";
 import { DateRange } from "react-day-picker";
@@ -173,11 +170,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
         )}
       </div>
 
-      {/* Budget */}
-      <div className="mb-6">
-        <BudgetInput budget={budget} setBudget={setBudget} totalEstimatedCost={totalEstimatedCost} />
-      </div>
-
       {/* Month Calendar */}
       {onRangeChange && (
         <div className="mb-4">
@@ -229,25 +221,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
       {/* Selected day content */}
       {currentDay ? (
         <div className="animate-fade-in">
-          {/* Day location */}
-          <div className="flex items-center gap-2 mb-4 bg-card rounded-xl p-3 border border-border/30">
-            <MapPin className="h-4 w-4 text-primary shrink-0" />
-            <Input
-              placeholder="Lokasi hari ini (contoh: Kuta, Bali)"
-              value={currentDay.location}
-              onChange={(e) => setDays(days.map((d) => (d.id === currentDay.id ? { ...d, location: e.target.value } : d)))}
-              className="text-sm h-8 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
-            />
-            <SmartGeneratePopover
-              dayLocation={currentDay.location}
-              dayDate={currentDay.date}
-              budgetRemaining={budget - totalEstimatedCost}
-              existingActivities={currentDay.items}
-              destination={destination}
-              onGenerated={(items) => handleGeneratedItems(currentDay.id, items)}
-            />
-          </div>
-
           {/* Activities */}
           <DragDropContext onDragEnd={onDragEnd}>
             <Droppable droppableId={currentDay.id}>
