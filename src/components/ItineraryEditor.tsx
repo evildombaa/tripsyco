@@ -97,10 +97,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
     );
   };
 
-  const handleGeneratedItems = (dayId: string, items: EnhancedItem[]) => {
-    setDays(days.map((d) => (d.id === dayId ? { ...d, items } : d)));
-  };
-
   const handleAddActivity = (dayId: string, item: EnhancedItem) => {
     setDays(days.map((d) => (d.id === dayId ? { ...d, items: [...d.items, item] } : d)));
   };
