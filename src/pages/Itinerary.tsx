@@ -392,10 +392,6 @@ const Itinerary = () => {
 
   const handleSave = async () => {
     if (!user) return;
-    if (budget <= 0) {
-      toast({ title: "Masukkan budget terlebih dahulu!", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       if (itineraryId) {
