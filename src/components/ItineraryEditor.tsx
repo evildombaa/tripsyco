@@ -146,24 +146,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             className="text-2xl md:text-3xl font-extrabold font-serif text-foreground bg-transparent outline-none border-b-2 border-transparent focus:border-primary transition-colors w-full truncate"
           />
         </div>
-        {onSave && (
-          <div className="ml-4 shrink-0 flex items-center gap-2">
-            {onDelete && (
-              <Button
-                variant="outline"
-                onClick={onDelete}
-                disabled={deleting || saving}
-                className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                {deleting ? "Menghapus..." : "Hapus"}
-              </Button>
-            )}
-            <Button onClick={onSave} disabled={saving} className="gradient-primary border-0 shadow-md hover:shadow-lg transition-all">
-              {saving ? "Menyimpan..." : "Simpan"}
-            </Button>
-          </div>
-        )}
       </div>
 
       {/* Month Calendar */}
@@ -264,7 +246,7 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             </Droppable>
           </DragDropContext>
 
-          <div className="flex items-center gap-2 mt-3">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
             <Button
               variant="ghost"
               size="sm"
@@ -283,6 +265,30 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
                 <Trash2 className="h-4 w-4 mr-1" /> Hapus Hari
               </Button>
             )}
+            {onSave && (
+              <div className="ml-auto flex items-center gap-2">
+                {onDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={onDelete}
+                    disabled={deleting || saving}
+                    className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    {deleting ? "Menghapus..." : "Hapus"}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={onSave}
+                  disabled={saving}
+                  className="gradient-primary border-0 shadow-md hover:shadow-lg transition-all"
+                >
+                  {saving ? "Menyimpan..." : "Simpan"}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -294,9 +300,31 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
           <p className="text-sm text-muted-foreground mb-4">
             Pilih rentang tanggal di kalender lalu generate, atau tambahkan rencana manual
           </p>
-          <Button variant="outline" onClick={addDay} className="rounded-xl">
-            <Plus className="h-4 w-4 mr-2" /> Tambah Rencana
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            <Button variant="outline" onClick={addDay} className="rounded-xl">
+              <Plus className="h-4 w-4 mr-2" /> Tambah Rencana
+            </Button>
+            {onSave && onDelete && (
+              <Button
+                variant="outline"
+                onClick={onDelete}
+                disabled={deleting || saving}
+                className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {deleting ? "Menghapus..." : "Hapus"}
+              </Button>
+            )}
+            {onSave && (
+              <Button
+                onClick={onSave}
+                disabled={saving}
+                className="rounded-xl gradient-primary border-0 shadow-md hover:shadow-lg transition-all"
+              >
+                {saving ? "Menyimpan..." : "Simpan"}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
