@@ -30,13 +30,14 @@ interface Props {
   saving?: boolean;
   onDelete?: () => void;
   deleting?: boolean;
+  onDeleteDay?: (dayId: string, date: string) => Promise<void> | void;
   range?: DateRange;
   onRangeChange?: (r: DateRange | undefined) => void;
   onGenerate?: () => void;
   generating?: boolean;
 }
 
-const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting, range, onRangeChange, onGenerate, generating }: Props) => {
+const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting, onDeleteDay, range, onRangeChange, onGenerate, generating }: Props) => {
   const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [selectedItem, setSelectedItem] = useState<{ dayId: string; item: EnhancedItem } | null>(null);
   const [addDialogDayId, setAddDialogDayId] = useState<string | null>(null);
@@ -267,11 +268,14 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             )}
             {onSave && (
               <div className="ml-auto flex items-center gap-2">
-                {onDelete && (
+                {onDeleteDay && (
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={onDelete}
+                    onClick={() => {
+                      if (!confirm(`Hapus rencana untuk tanggal ${format(selectedDate, "d MMMM yyyy", { locale: localeId })}?`)) return;
+                      onDeleteDay(currentDay.id, currentDay.date);
+                    }}
                     disabled={deleting || saving}
                     className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
@@ -304,17 +308,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             <Button variant="outline" onClick={addDay} className="rounded-xl">
               <Plus className="h-4 w-4 mr-2" /> Tambah Rencana
             </Button>
-            {onSave && onDelete && (
-              <Button
-                variant="outline"
-                onClick={onDelete}
-                disabled={deleting || saving}
-                className="rounded-xl border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                {deleting ? "Menghapus..." : "Hapus"}
-              </Button>
-            )}
             {onSave && (
               <Button
                 onClick={onSave}
