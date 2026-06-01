@@ -32,11 +32,47 @@ interface Props {
 
 const characters = [char1, char2, char3, char4, char5];
 
-// Preload all character images once so swaps appear instantly (no progressive load).
+// ---------------------------------------------------------------------------
+// Character preloading: fetch + decode every sprite once, keep them in an
+// in-memory cache so subsequent swaps never trigger a network request and
+// never render a partially-decoded frame.
+// ---------------------------------------------------------------------------
+const decodedCache = new Map<string, HTMLImageElement>();
+const decodePromises = new Map<string, Promise<HTMLImageElement>>();
+
+function preloadAndDecode(src: string): Promise<HTMLImageElement> {
+  if (decodedCache.has(src)) return Promise.resolve(decodedCache.get(src)!);
+  const existing = decodePromises.get(src);
+  if (existing) return existing;
+  const p = new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = src;
+    const done = () => {
+      decodedCache.set(src, img);
+      resolve(img);
+    };
+    if (typeof img.decode === "function") {
+      img.decode().then(done).catch(() => {
+        // Fallback: wait for onload if decode() fails (e.g. older browsers).
+        if (img.complete && img.naturalWidth > 0) done();
+        else {
+          img.onload = () => done();
+          img.onerror = (e) => reject(e);
+        }
+      });
+    } else {
+      img.onload = () => done();
+      img.onerror = (e) => reject(e);
+    }
+  });
+  decodePromises.set(src, p);
+  return p;
+}
+
 if (typeof window !== "undefined") {
   characters.forEach((src) => {
-    const img = new Image();
-    img.src = src;
+    preloadAndDecode(src).catch(() => {});
   });
 }
 
@@ -69,7 +105,10 @@ const TIME_OPTIONS = (() => {
 
 const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
   const [step, setStep] = useState(0);
-  const [direction, setDirection] = useState<"in" | "out-right">("in");
+  // The character currently painted on screen. It only updates after the
+  // next sprite has been fully decoded so the swap is instant and complete.
+  const [displayedStep, setDisplayedStep] = useState(0);
+  const [direction, setDirection] = useState<"idle" | "out-right" | "in-right">("idle");
 
   // Answers
   const [destination, setDestination] = useState("");
@@ -90,32 +129,53 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
   useEffect(() => {
     if (open) {
       setStep(0);
-      setDirection("in");
+      setDisplayedStep(0);
+      setDirection("idle");
+      // Make sure first sprite is decoded before anything else paints.
+      preloadAndDecode(characters[0]).catch(() => {});
     }
   }, [open]);
+
+  // When `step` changes, ensure the target sprite is decoded *before*
+  // swapping. The currently displayed sprite stays on screen until the new
+  // one is ready, so there is never a blank or half-loaded frame.
+  useEffect(() => {
+    if (!open) return;
+    if (step === displayedStep) return;
+    let cancelled = false;
+    setDirection("out-right");
+    const target = characters[step];
+    // Slide-out duration matches CSS keyframe below.
+    const slideOutMs = 180;
+    const swap = async () => {
+      await preloadAndDecode(target).catch(() => {});
+      if (cancelled) return;
+      setDisplayedStep(step);
+      setDirection("in-right");
+      // Clear animation flag after slide-in finishes so future re-renders
+      // don't replay it.
+      window.setTimeout(() => {
+        if (!cancelled) setDirection("idle");
+      }, 220);
+    };
+    const t = window.setTimeout(swap, slideOutMs);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [step, displayedStep, open]);
 
   if (!open) return null;
 
   const totalSteps = 5;
 
-  const goNext = () => {
-    setDirection("out-right");
-    setTimeout(() => {
-      setStep((s) => Math.min(s + 1, totalSteps - 1));
-      setDirection("in");
-    }, 280);
-  };
-
+  const goNext = () => setStep((s) => Math.min(s + 1, totalSteps - 1));
   const goBack = () => {
     if (step === 0) {
       onClose();
       return;
     }
-    setDirection("out-right");
-    setTimeout(() => {
-      setStep((s) => Math.max(s - 1, 0));
-      setDirection("in");
-    }, 280);
+    setStep((s) => Math.max(s - 1, 0));
   };
 
   const finish = () => {
@@ -182,8 +242,8 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
         {/* Character */}
         <div className="w-full flex justify-center pointer-events-none overflow-hidden -mb-px">
           <img
-            key={step}
-            src={characters[step]}
+            key={displayedStep}
+            src={characters[displayedStep]}
             alt="Karakter"
             decoding="sync"
             loading="eager"
@@ -191,7 +251,8 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
             draggable={false}
             className={cn(
               "h-[38vh] sm:h-[46vh] max-h-[420px] w-auto object-contain drop-shadow-2xl will-change-transform",
-              direction === "out-right" && "animate-[charSlideOut_0.18s_ease-in_both]"
+              direction === "out-right" && "animate-[charSlideOut_0.18s_ease-in_both]",
+              direction === "in-right" && "animate-[charSlideIn_0.22s_ease-out_both]"
             )}
           />
         </div>
@@ -393,12 +454,12 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
 
       <style>{`
         @keyframes charSlideIn {
-          from { transform: translateX(80vw); }
+          from { transform: translateX(60vw); }
           to { transform: translateX(0); }
         }
         @keyframes charSlideOut {
           from { transform: translateX(0); }
-          to { transform: translateX(80vw); }
+          to { transform: translateX(60vw); }
         }
       `}</style>
     </div>
