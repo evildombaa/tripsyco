@@ -177,25 +177,28 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
         <X className="h-5 w-5 text-foreground" />
       </button>
 
-      {/* Character */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-[42%] sm:bottom-[38%] pointer-events-none overflow-hidden">
-        <img
-          key={step}
-          src={characters[step]}
-          alt="Karakter"
-          decoding="sync"
-          loading="eager"
-          className={cn(
-            "h-[55vh] sm:h-[65vh] max-h-[520px] w-auto object-contain drop-shadow-2xl",
-            direction === "in" && "animate-[charSlideIn_0.35s_cubic-bezier(0.22,1,0.36,1)_both]",
-            direction === "out-right" && "animate-[charSlideOut_0.28s_ease-in_both]"
-          )}
-        />
-      </div>
+      {/* Character + Hover box stacked, no gap, character slightly clipped by box */}
+      <div className="relative w-full max-w-2xl mx-auto z-20 flex flex-col items-center">
+        {/* Character */}
+        <div className="w-full flex justify-center pointer-events-none overflow-hidden -mb-6 sm:-mb-8">
+          <img
+            key={step}
+            src={characters[step]}
+            alt="Karakter"
+            decoding="sync"
+            loading="eager"
+            fetchPriority="high"
+            draggable={false}
+            className={cn(
+              "h-[68vh] sm:h-[75vh] max-h-[640px] w-auto object-contain drop-shadow-2xl will-change-transform",
+              direction === "in" && "animate-[charSlideIn_0.25s_cubic-bezier(0.22,1,0.36,1)_both]",
+              direction === "out-right" && "animate-[charSlideOut_0.22s_ease-in_both]"
+            )}
+          />
+        </div>
 
-      {/* Hover box */}
-      <div className="relative w-full max-w-2xl mx-auto z-20">
-        <div className="bg-card border border-border/40 rounded-t-3xl shadow-2xl p-6 sm:p-8 max-h-[55vh] overflow-auto">
+        {/* Hover box */}
+        <div className="relative w-full bg-card border border-border/40 rounded-t-3xl shadow-2xl p-6 sm:p-8 max-h-[55vh] overflow-auto">
           {/* Progress */}
           <div className="flex items-center gap-1.5 mb-5 justify-center">
             {Array.from({ length: totalSteps }).map((_, i) => (
