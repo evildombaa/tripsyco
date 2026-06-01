@@ -180,7 +180,7 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
       {/* Character + Hover box stacked, no gap, character slightly clipped by box */}
       <div className="relative w-full max-w-2xl mx-auto z-20 flex flex-col items-center">
         {/* Character */}
-        <div className="w-full flex justify-center pointer-events-none overflow-hidden -mb-6 sm:-mb-8">
+        <div className="w-full flex justify-center pointer-events-none overflow-hidden -mb-px">
           <img
             key={step}
             src={characters[step]}
@@ -190,9 +190,8 @@ const QuestionnaireGame = ({ open, onClose, onComplete, numDays }: Props) => {
             fetchPriority="high"
             draggable={false}
             className={cn(
-              "h-[68vh] sm:h-[75vh] max-h-[640px] w-auto object-contain drop-shadow-2xl will-change-transform",
-              direction === "in" && "animate-[charSlideIn_0.25s_cubic-bezier(0.22,1,0.36,1)_both]",
-              direction === "out-right" && "animate-[charSlideOut_0.22s_ease-in_both]"
+              "h-[38vh] sm:h-[46vh] max-h-[420px] w-auto object-contain drop-shadow-2xl will-change-transform",
+              direction === "out-right" && "animate-[charSlideOut_0.18s_ease-in_both]"
             )}
           />
         </div>
