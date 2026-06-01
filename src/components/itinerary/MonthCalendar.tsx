@@ -46,7 +46,17 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
             "relative after:content-[''] after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-primary",
           focus: "ring-2 ring-primary/50",
         }}
-        className={cn("p-2 pointer-events-auto mx-auto")}
+        className={cn("p-2 pointer-events-auto w-full")}
+        classNames={{
+          months: "flex flex-col w-full",
+          month: "space-y-4 w-full",
+          table: "w-full border-collapse",
+          head_row: "flex w-full",
+          head_cell: "text-muted-foreground font-normal text-[0.8rem] flex-1 text-center",
+          row: "flex w-full mt-2",
+          cell: "flex-1 aspect-square text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20",
+          day: "h-full w-full p-0 font-normal aria-selected:opacity-100 rounded-md hover:bg-accent hover:text-accent-foreground inline-flex items-center justify-center",
+        }}
       />
       <div className="flex items-center justify-center gap-4 mt-2 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
