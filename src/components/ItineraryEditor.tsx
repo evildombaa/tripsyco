@@ -249,21 +249,21 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
 
           <div className="flex items-center gap-2 mt-3 flex-wrap">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="text-muted-foreground hover:text-primary"
+              className="border-border text-muted-foreground hover:text-primary hover:border-primary/40"
               onClick={() => setAddDialogDayId(currentDay.id)}
             >
               <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
             </Button>
             {currentDay.items.length === 0 && (
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                className="text-muted-foreground hover:text-destructive"
+                className="border-border text-muted-foreground hover:text-destructive hover:border-destructive/40"
                 onClick={() => removeDay(currentDay.id)}
               >
-                <Trash2 className="h-4 w-4 mr-1" /> Hapus Hari
+                Hapus Hari
               </Button>
             )}
             {onSave && (
@@ -279,7 +279,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
                     disabled={deleting || saving}
                     className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
                   >
-                    <Trash2 className="h-4 w-4 mr-1" />
                     {deleting ? "Menghapus..." : "Hapus"}
                   </Button>
                 )}
