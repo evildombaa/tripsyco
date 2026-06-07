@@ -191,7 +191,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { category, searchQuery } = await req.json();
+    const { category, searchQuery, limit, offset } = await req.json();
+    const pageLimit = Math.max(1, Math.min(50, Number(limit) || 10));
+    const pageOffset = Math.max(0, Number(offset) || 0);
 
     let results = [...curatedPlaces];
 
@@ -206,7 +208,9 @@ serve(async (req) => {
       results = results.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
-          p.address.toLowerCase().includes(q)
+          p.address.toLowerCase().includes(q) ||
+          (p as any).tags?.some((t: string) => t.toLowerCase().includes(q)) ||
+          p.category.toLowerCase().includes(q)
       );
 
       // If no results from curated, try OpenStreetMap Nominatim
@@ -243,21 +247,23 @@ serve(async (req) => {
       results = curatedPlaces;
     }
 
-    // Use exactly one stable image from the same Commons gallery source used on the detail page.
-    // Do not keep old curated/Unsplash photos as fallback, so card images cannot switch back.
-    results = await Promise.all(
-      results.map(async (p) => {
+    const total = results.length;
+    const paged = results.slice(pageOffset, pageOffset + pageLimit);
+
+    // Only fetch photos for the current page so initial load stays fast
+    const withPhotos = await Promise.all(
+      paged.map(async (p) => {
         const galleryPhoto = await fetchCardGalleryPhoto(p.name);
         return { ...p, photoUrl: galleryPhoto || undefined };
       })
     );
 
-    return new Response(JSON.stringify({ places: results }), {
+    return new Response(JSON.stringify({ places: withPhotos, total, hasMore: pageOffset + paged.length < total }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error("explore-places error:", e);
-    return new Response(JSON.stringify({ places: curatedPlaces }), {
+    return new Response(JSON.stringify({ places: [], total: 0, hasMore: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
