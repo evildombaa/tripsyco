@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Star, MapPin, ExternalLink, Clock, Globe, Loader2, Plane } from "lucide-react";
+import { ArrowLeft, Star, MapPin, ExternalLink, Clock, Globe, Loader2, Plane, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
+import AddToItineraryDialog from "@/components/itinerary/AddToItineraryDialog";
 
 interface Review {
   author: string;
@@ -57,6 +58,7 @@ const DestinationDetail = () => {
   const [loading, setLoading] = useState(true);
   const [selectedPhoto, setSelectedPhoto] = useState(0);
   const [heroPhoto, setHeroPhoto] = useState<string>("");
+  const [addOpen, setAddOpen] = useState(false);
 
   const name = searchParams.get("name") || "";
   const lat = searchParams.get("lat") || "0";
@@ -247,6 +249,14 @@ const DestinationDetail = () => {
 
           {/* Sidebar Info */}
           <div className="space-y-6">
+            <Button
+              onClick={() => setAddOpen(true)}
+              className="w-full gradient-primary border-0 shadow-md hover:shadow-lg"
+              size="lg"
+            >
+              <Plus className="h-4 w-4 mr-1" /> Tambah ke Itinerary
+            </Button>
+
             {details.openingHours && (
               <Card className="bg-card border-border/50">
                 <CardContent className="p-4">
@@ -315,6 +325,18 @@ const DestinationDetail = () => {
       </div>
 
       <Footer />
+      <AddToItineraryDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        place={{
+          name: details.name,
+          address: details.address,
+          photoUrl: heroPhoto || details.photos?.[0] || fallbackPhoto,
+          rating: details.rating ?? null,
+          category,
+          description: details.description ?? null,
+        }}
+      />
     </div>
   );
 };
