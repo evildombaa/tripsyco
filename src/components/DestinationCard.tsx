@@ -1,6 +1,9 @@
-import { MapPin, Star, ExternalLink } from "lucide-react";
+import { MapPin, Star, ExternalLink, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import AddToItineraryDialog from "@/components/itinerary/AddToItineraryDialog";
 
 interface DestinationCardProps {
   name: string;
@@ -24,6 +27,7 @@ const DestinationCard = ({
   lng,
 }: DestinationCardProps) => {
   const navigate = useNavigate();
+  const [addOpen, setAddOpen] = useState(false);
 
   const handleClick = () => {
     const params = new URLSearchParams({
@@ -40,8 +44,14 @@ const DestinationCard = ({
   };
 
   return (
-    <button onClick={handleClick} className="group block text-left w-full">
-      <div className="rounded-2xl overflow-hidden bg-card border border-border/50 hover-lift shadow-sm">
+    <div className="group block text-left w-full">
+      <div
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter") handleClick(); }}
+        className="rounded-2xl overflow-hidden bg-card border border-border/50 hover-lift shadow-sm cursor-pointer"
+      >
         <div className="relative aspect-[4/3] overflow-hidden bg-muted">
           {photoUrl && (
             <img
@@ -76,9 +86,22 @@ const DestinationCard = ({
               )}
             </div>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full mt-2 border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+            onClick={(e) => { e.stopPropagation(); setAddOpen(true); }}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Tambah ke Itinerary
+          </Button>
         </div>
       </div>
-    </button>
+      <AddToItineraryDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        place={{ name, address, photoUrl, rating, category }}
+      />
+    </div>
   );
 };
 
