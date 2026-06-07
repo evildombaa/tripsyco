@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Search, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -20,40 +20,72 @@ interface Place {
 
 const categories = ["Semua", "Alam", "Kuliner", "Budaya", "Petualangan", "Relaksasi"];
 
+const PAGE_SIZE = 10;
+
 const Explore = () => {
   const [searchParams] = useSearchParams();
   const initialQuery = searchParams.get("q") || "";
   const [query, setQuery] = useState(initialQuery);
+  const [submittedQuery, setSubmittedQuery] = useState(initialQuery);
   const [activeCategory, setActiveCategory] = useState("Semua");
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const offsetRef = useRef(0);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    fetchPlaces();
-  }, [activeCategory]);
-
-  const fetchPlaces = async () => {
-    setLoading(true);
+  const fetchPage = useCallback(async (reset: boolean) => {
+    if (reset) {
+      setLoading(true);
+      offsetRef.current = 0;
+    } else {
+      setLoadingMore(true);
+    }
     try {
       const { data, error } = await supabase.functions.invoke("explore-places", {
         body: {
           category: activeCategory,
-          searchQuery: query || undefined,
+          searchQuery: submittedQuery || undefined,
+          limit: PAGE_SIZE,
+          offset: offsetRef.current,
         },
       });
-
-      if (!error && data?.places && data.places.length > 0) {
-        setPlaces(data.places);
+      if (!error && data?.places) {
+        setPlaces((prev) => (reset ? data.places : [...prev, ...data.places]));
+        offsetRef.current += data.places.length;
+        setHasMore(Boolean(data.hasMore));
+      } else if (reset) {
+        setPlaces([]);
+        setHasMore(false);
       }
     } catch (error) {
       console.error("Error fetching places:", error);
+      if (reset) setPlaces([]);
     }
     setLoading(false);
-  };
+    setLoadingMore(false);
+  }, [activeCategory, submittedQuery]);
 
-  const handleSearch = () => {
-    fetchPlaces();
-  };
+  useEffect(() => {
+    fetchPage(true);
+  }, [fetchPage]);
+
+  // Infinite scroll
+  useEffect(() => {
+    if (!hasMore || loading) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !loadingMore) {
+        fetchPage(false);
+      }
+    }, { rootMargin: "400px" });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loading, loadingMore, fetchPage]);
+
+  const handleSearch = () => setSubmittedQuery(query.trim());
 
   return (
     <div className="min-h-screen bg-background">
@@ -104,11 +136,22 @@ const Explore = () => {
               <p className="text-sm text-muted-foreground">Mencari destinasi...</p>
             </div>
           ) : places.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in">
-              {places.map((place, idx) => (
-                <DestinationCard key={`${place.name}-${idx}`} {...place} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-fade-in">
+                {places.map((place, idx) => (
+                  <DestinationCard key={`${place.name}-${idx}`} {...place} />
+                ))}
+              </div>
+              <div ref={sentinelRef} className="h-10" />
+              {loadingMore && (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              )}
+              {!hasMore && places.length > PAGE_SIZE && (
+                <p className="text-center text-xs text-muted-foreground mt-6">Semua destinasi sudah ditampilkan.</p>
+              )}
+            </>
           ) : (
             <div className="text-center py-24">
               <p className="text-muted-foreground text-lg">Tidak ada destinasi yang ditemukan.</p>
