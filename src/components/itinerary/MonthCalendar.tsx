@@ -61,19 +61,13 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
         onSelectDate(date);
       }
     } else {
-      // Single click
+      // Single click: wait briefly so the first click of a valid double-click end date is not canceled
       if (range?.from && !range.to) {
         clearPendingCancel();
-        if (date.toDateString() === last.date?.toDateString()) {
-          // Clicked the same date as last time — could be start of a double-click end date
-          pendingCancelRef.current = setTimeout(() => {
-            onRangeChange(undefined);
-            pendingCancelRef.current = null;
-          }, DOUBLE_CLICK_DELAY);
-        } else {
-          // Clicked a different date — cancel the pending range immediately
+        pendingCancelRef.current = setTimeout(() => {
           onRangeChange(undefined);
-        }
+          pendingCancelRef.current = null;
+        }, DOUBLE_CLICK_DELAY);
       }
       onSelectDate(date);
     }
