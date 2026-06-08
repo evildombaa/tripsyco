@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ interface Props {
 }
 
 const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, datesWithPlans }: Props) => {
+  const DOUBLE_CLICK_DELAY = 400;
   const plannedDates = useMemo(
     () =>
       datesWithPlans
@@ -25,14 +26,25 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
   );
 
   const lastClickRef = useRef<{ time: number; date: Date | null }>({ time: 0, date: null });
+  const pendingCancelRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearPendingCancel = () => {
+    if (pendingCancelRef.current) {
+      clearTimeout(pendingCancelRef.current);
+      pendingCancelRef.current = null;
+    }
+  };
+
+  useEffect(() => () => clearPendingCancel(), []);
 
   const handleDayClick = (date: Date) => {
     const now = Date.now();
     const last = lastClickRef.current;
-    const isDouble = last.date && date.getTime() === last.date.getTime() && now - last.time < 400;
+    const isDouble = last.date && date.toDateString() === last.date.toDateString() && now - last.time < DOUBLE_CLICK_DELAY;
     lastClickRef.current = { time: now, date };
 
     if (isDouble) {
+      clearPendingCancel();
       // Double-click: set range start, or set range end if start already chosen
       if (!range?.from || (range.from && range.to)) {
         // Start a new range
@@ -49,9 +61,13 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
         onSelectDate(date);
       }
     } else {
-      // Single click: if there is a pending incomplete range, cancel it
+      // Single click: wait briefly so the first click of a valid double-click end date is not canceled
       if (range?.from && !range.to) {
-        onRangeChange(undefined);
+        clearPendingCancel();
+        pendingCancelRef.current = setTimeout(() => {
+          onRangeChange(undefined);
+          pendingCancelRef.current = null;
+        }, DOUBLE_CLICK_DELAY);
       }
       onSelectDate(date);
     }
