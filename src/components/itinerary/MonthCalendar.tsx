@@ -49,7 +49,10 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
         onSelectDate(date);
       }
     } else {
-      // Single click: just focus that day, do not change range
+      // Single click: if there is a pending incomplete range, cancel it
+      if (range?.from && !range.to) {
+        onRangeChange(undefined);
+      }
       onSelectDate(date);
     }
   };
