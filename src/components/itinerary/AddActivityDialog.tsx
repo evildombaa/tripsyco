@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -54,8 +54,9 @@ const AddActivityDialog = ({
   const { toast } = useToast();
 
   const fetchSuggestions = async (query?: string) => {
-    if (!dayLocation) {
-      toast({ title: "Masukkan lokasi hari ini terlebih dahulu", variant: "destructive" });
+    const locationToUse = dayLocation || destination;
+    if (!locationToUse) {
+      toast({ title: "Tujuan belum ditentukan", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -70,7 +71,7 @@ const AddActivityDialog = ({
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
           body: JSON.stringify({
-            location: dayLocation,
+            location: locationToUse,
             date: dayDate,
             budget_remaining: budgetRemaining,
             existing_activities: existingActivities,
@@ -120,27 +121,26 @@ const AddActivityDialog = ({
     onClose();
   };
 
-  const handleOpen = () => {
-    if (open && dayLocation && suggestions.length === 0) {
+  // Auto-fetch suggestions when dialog opens
+  useEffect(() => {
+    if (open) {
+      setSuggestions([]);
+      setSelected(null);
       fetchSuggestions();
     }
-  };
-
-  // Auto-fetch on open
-  useState(() => {
-    if (open && dayLocation) fetchSuggestions();
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-visible">
         <DialogHeader>
           <DialogTitle className="text-lg">Tambah Aktivitas</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+        <div className="space-y-4 flex-1 flex flex-col min-h-0 px-1">
           {/* Time & Status */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 px-px">
             <div className="flex-1">
               <label className="text-xs text-muted-foreground mb-1 block">Waktu</label>
               <div className="relative">
@@ -169,7 +169,7 @@ const AddActivityDialog = ({
           </div>
 
           {/* Search */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 px-px">
             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -186,7 +186,7 @@ const AddActivityDialog = ({
           </div>
 
           {/* Suggestions list */}
-          <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+          <div className="flex-1 overflow-y-auto space-y-2 min-h-[200px] px-px">
             {loading && suggestions.length === 0 && (
               <div className="flex items-center justify-center py-8 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin mr-2" />
@@ -196,9 +196,7 @@ const AddActivityDialog = ({
 
             {!loading && suggestions.length === 0 && (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                {dayLocation
-                  ? "Klik 'Cari' untuk mendapatkan rekomendasi aktivitas"
-                  : "Masukkan lokasi hari ini terlebih dahulu"}
+                Klik 'Cari' untuk mendapatkan rekomendasi aktivitas
               </div>
             )}
 

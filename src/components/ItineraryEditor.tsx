@@ -80,6 +80,17 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
     }
   };
 
+  const handleAddActivityClick = () => {
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
+    let day = days.find((d) => d.date === dateStr);
+    if (!day) {
+      const newDay: DayPlan = { id: Date.now().toString(), date: dateStr, location: "", items: [] };
+      setDays([...days, newDay]);
+      day = newDay;
+    }
+    setAddDialogDayId(day.id);
+  };
+
   const removeDay = (dayId: string) => {
     setDays(days.filter((d) => d.id !== dayId));
   };
@@ -304,8 +315,12 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             Pilih rentang tanggal di kalender lalu generate, atau tambahkan rencana manual
           </p>
           <div className="flex items-center gap-2 flex-wrap justify-center">
-            <Button variant="outline" onClick={addDay} className="rounded-xl">
-              <Plus className="h-4 w-4 mr-2" /> Tambah Rencana
+            <Button
+              variant="outline"
+              onClick={handleAddActivityClick}
+              className="rounded-xl border-primary/40 text-primary hover:bg-primary/10 hover:text-primary"
+            >
+              <Plus className="h-4 w-4 mr-2" /> Tambah Aktivitas
             </Button>
             {onSave && (
               <Button
