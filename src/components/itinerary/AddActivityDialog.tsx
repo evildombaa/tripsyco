@@ -86,7 +86,7 @@ const AddActivityDialog = ({
       if (!res.ok) throw new Error("Gagal memuat rekomendasi");
 
       const data = await res.json();
-      setSuggestions(data.recommendations || []);
+      setSuggestions((data.recommendations || []).slice(0, 5));
     } catch (error: any) {
       toast({ title: "Gagal memuat", description: error.message, variant: "destructive" });
     } finally {
@@ -121,14 +121,13 @@ const AddActivityDialog = ({
     onClose();
   };
 
-  // Auto-fetch suggestions when dialog opens
+  // Reset state when dialog opens — do NOT auto-fetch
   useEffect(() => {
     if (open) {
       setSuggestions([]);
       setSelected(null);
-      fetchSuggestions();
+      setSearchQuery("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (
@@ -196,7 +195,9 @@ const AddActivityDialog = ({
 
             {!loading && suggestions.length === 0 && (
               <div className="text-center py-8 text-muted-foreground text-sm">
-                Klik 'Cari' untuk mendapatkan rekomendasi aktivitas
+                Semua aktivitas akan muncul di sini.
+                <br />
+                Ketik tempat lalu klik "Cari" untuk memulai.
               </div>
             )}
 
