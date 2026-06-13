@@ -35,10 +35,21 @@ interface Props {
   onRangeChange?: (r: DateRange | undefined) => void;
   onGenerate?: () => void;
   generating?: boolean;
+  selectedDate?: Date;
+  onSelectedDateChange?: (date: Date) => void;
 }
 
-const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting, onDeleteDay, range, onRangeChange, onGenerate, generating }: Props) => {
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudget, destination, onSave, saving, onDelete, deleting, onDeleteDay, range, onRangeChange, onGenerate, generating, selectedDate: controlledSelectedDate, onSelectedDateChange }: Props) => {
+  const [internalSelectedDate, setInternalSelectedDate] = useState<Date>(() => controlledSelectedDate ?? new Date());
+  const selectedDate = controlledSelectedDate ?? internalSelectedDate;
+
+  const setSelectedDate = (date: Date) => {
+    if (!controlledSelectedDate) {
+      setInternalSelectedDate(date);
+    }
+    onSelectedDateChange?.(date);
+  };
+
   const [selectedItem, setSelectedItem] = useState<{ dayId: string; item: EnhancedItem } | null>(null);
   const [addDialogDayId, setAddDialogDayId] = useState<string | null>(null);
   const { toast } = useToast();
