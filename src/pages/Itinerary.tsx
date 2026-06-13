@@ -31,6 +31,8 @@ const Itinerary = () => {
   const [generating, setGenerating] = useState(false);
   const [conflictDates, setConflictDates] = useState<string[]>([]);
   const [pendingAnswers, setPendingAnswers] = useState<QuestionnaireAnswers | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [completingDayId, setCompletingDayId] = useState<string | null>(null);
   const { user } = useAuth();
   const { toast } = useToast();
 
