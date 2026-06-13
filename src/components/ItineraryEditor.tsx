@@ -267,16 +267,6 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             >
               <Plus className="h-4 w-4 mr-1" /> Tambah Aktivitas
             </Button>
-            {currentDay.items.length === 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-border text-muted-foreground hover:text-destructive hover:border-destructive/40"
-                onClick={() => removeDay(currentDay.id)}
-              >
-                Hapus Hari
-              </Button>
-            )}
             {onSave && (
               <div className="ml-auto flex items-center gap-2">
                 {onDeleteDay && (
