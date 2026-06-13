@@ -567,6 +567,8 @@ const Itinerary = () => {
                 onRangeChange={setRange}
                 onGenerate={handleStartGenerate}
                 generating={generating}
+                selectedDate={selectedDate}
+                onSelectedDateChange={setSelectedDate}
               />
               <div className="max-w-3xl mx-auto mt-8">
                 <Button variant="outline" className="w-full" onClick={handleFinish}>
