@@ -112,31 +112,62 @@ const Itinerary = () => {
   }, [user]);
 
   const handleFinish = () => {
-    if (itineraryId) {
-      setMode("feedback");
-    } else {
+    if (!itineraryId) {
       toast({ title: "Simpan dulu itinerary-mu sebelum finish!" });
+      return;
     }
+    const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
+    const day = days.find((d) => d.date === selectedDateStr);
+    if (!day) {
+      toast({ title: "Tidak ada rencana untuk hari yang dipilih" });
+      return;
+    }
+    setCompletingDayId(day.id);
+    setMode("feedback");
   };
 
   const handleFeedbackDone = async () => {
+    if (!completingDayId) return;
+
+    const remainingDays = days.filter((d) => d.id !== completingDayId);
+    setDays(remainingDays);
+
     if (itineraryId) {
       try {
-        await supabase.from("itinerary_days").delete().eq("itinerary_id", itineraryId);
-        await supabase.from("itinerary_feedback").delete().eq("itinerary_id", itineraryId);
-        await supabase.from("itinerary_preferences").delete().eq("itinerary_id", itineraryId);
-        await supabase.from("itineraries").delete().eq("id", itineraryId);
+        await supabase.from("itinerary_day_items").delete().eq("day_id", completingDayId);
+        await supabase.from("itinerary_days").delete().eq("id", completingDayId);
+
+        if (remainingDays.length === 0) {
+          await supabase.from("itinerary_feedback").delete().eq("itinerary_id", itineraryId);
+          await supabase.from("itinerary_preferences").delete().eq("itinerary_id", itineraryId);
+          await supabase.from("itineraries").delete().eq("id", itineraryId);
+          setItineraryId(null);
+          setTripName("Perjalanan Baru");
+          setBudget(0);
+          setDestination("");
+          setRange(undefined);
+          toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
+        } else {
+          toast({ title: "Hari ini selesai! 🎉", description: "Itinerary hari lain masih tersedia." });
+        }
       } catch (e) {
-        console.error("Error deleting itinerary:", e);
+        console.error("Error completing day:", e);
+        toast({ title: "Gagal menyelesaikan", variant: "destructive" });
+      }
+    } else {
+      if (remainingDays.length === 0) {
+        setTripName("Perjalanan Baru");
+        setBudget(0);
+        setDestination("");
+        setRange(undefined);
+        toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
+      } else {
+        toast({ title: "Hari ini selesai! 🎉", description: "Itinerary hari lain masih tersedia." });
       }
     }
-    setItineraryId(null);
-    setTripName("Perjalanan Baru");
-    setBudget(0);
-    setDays([]);
-    setRange(undefined);
-    setMode("manual");
-    toast({ title: "Itinerary selesai! 🎉", description: "Silakan buat itinerary baru." });
+
+    setCompletingDayId(null);
+    setMode(remainingDays.length === 0 ? "manual" : "editor");
   };
 
   const handleDelete = async () => {
