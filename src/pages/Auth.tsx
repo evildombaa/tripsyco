@@ -32,8 +32,17 @@ const Auth = () => {
           setLoading(false);
           return;
         }
+        if (!/^[^\s@]+@gmail\.com$/i.test(email.trim())) {
+          toast({
+            title: "Email harus menggunakan @gmail.com",
+            description: 'Contoh: "username"@gmail.com',
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
-          email,
+          email: email.trim(),
           password,
           options: {
             data: { full_name: name.trim() },
@@ -41,13 +50,19 @@ const Auth = () => {
           },
         });
         if (error) throw error;
-        toast({ title: "Akun berhasil dibuat!", description: "Silakan masuk dengan akun Anda." });
-        setIsSignUp(false);
-        setName("");
-        setPassword("");
+        // Langsung masuk ke web app tanpa diminta login ulang.
+        // Jika konfirmasi email diaktifkan, signUp tetap mengembalikan sesi
+        // saat "Confirm email" dimatikan; jika tidak, lakukan signIn otomatis.
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInError) throw signInError;
+        toast({ title: "Akun berhasil dibuat!", description: "Selamat datang di Tripsy." });
+        navigate("/");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim(),
           password,
         });
         if (error) throw error;
