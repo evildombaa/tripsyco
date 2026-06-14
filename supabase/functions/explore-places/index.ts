@@ -195,7 +195,40 @@ serve(async (req) => {
     const pageLimit = Math.max(1, Math.min(50, Number(limit) || 10));
     const pageOffset = Math.max(0, Number(offset) || 0);
 
-    let results = [...curatedPlaces];
+    // Derive location tags from the address so search by city/province works
+    // for every destination automatically (e.g. "bali", "yogyakarta", "jawa timur").
+    const stopwords = new Set([
+      "indonesia", "kota", "kabupaten", "kab", "kec", "kecamatan",
+      "provinsi", "daerah", "istimewa", "dki", "dan", "the",
+    ]);
+    const enrichedPlaces = curatedPlaces.map((p) => {
+      const addressTokens = p.address
+        .toLowerCase()
+        .split(/[,/]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const wordTokens = p.address
+        .toLowerCase()
+        .replace(/[,/]+/g, " ")
+        .split(/\s+/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 2 && !stopwords.has(s));
+      const locationTags = Array.from(new Set([...addressTokens, ...wordTokens]));
+      const existingTags = ((p as any).tags || []).map((t: string) => t.toLowerCase());
+      return {
+        ...p,
+        tags: Array.from(new Set([...existingTags, ...locationTags])),
+      };
+    });
+
+    // Dedupe by name as a safety net so "Semua" always shows every unique place.
+    const seen = new Set<string>();
+    let results = enrichedPlaces.filter((p) => {
+      const key = p.name.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
     // Filter by category
     if (category && category !== "Semua") {
@@ -204,14 +237,20 @@ serve(async (req) => {
 
     // Filter by search query
     if (searchQuery && searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      results = results.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.address.toLowerCase().includes(q) ||
-          (p as any).tags?.some((t: string) => t.toLowerCase().includes(q)) ||
-          p.category.toLowerCase().includes(q)
-      );
+      const q = searchQuery.toLowerCase().trim();
+      const queryTokens = q.split(/\s+/).filter((t) => t.length > 1);
+      const matches = (p: any) => {
+        const haystack = [
+          p.name.toLowerCase(),
+          p.address.toLowerCase(),
+          p.category.toLowerCase(),
+          ...(p.tags || []).map((t: string) => t.toLowerCase()),
+        ].join(" | ");
+        // Match the full phrase OR every token (AND semantics on tokens).
+        if (haystack.includes(q)) return true;
+        return queryTokens.every((t) => haystack.includes(t));
+      };
+      results = results.filter(matches);
 
       // If no results from curated, try OpenStreetMap Nominatim
       if (results.length === 0) {
