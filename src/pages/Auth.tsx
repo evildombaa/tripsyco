@@ -144,10 +144,12 @@ const Auth = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="nama@email.com"
+                placeholder="username@gmail.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                pattern="^[^\s@]+@gmail\.com$"
+                title="Email harus diakhiri dengan @gmail.com"
                 maxLength={255}
                 className="h-11 bg-white/15 border-white/25 text-white placeholder:text-white/60 backdrop-blur-md focus-visible:ring-white/40"
               />
