@@ -273,22 +273,20 @@ const DestinationDetail = () => {
               </Card>
             )}
 
-            {(details.website || details.mapsUrl) && (
-              <Card className="bg-card border-border/50">
-                <CardContent className="p-4 space-y-2">
-                  {details.website && (
-                    <a href={details.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                      <Globe className="h-4 w-4" /> Website Resmi
-                    </a>
-                  )}
-                  {details.mapsUrl && (
-                    <a href={details.mapsUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                      <MapPin className="h-4 w-4" /> Buka di Google Maps
-                    </a>
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            <Card className="bg-card border-border/50">
+              <CardContent className="p-4">
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                    [name, details.address].filter(Boolean).join(", ")
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-sm text-primary hover:underline"
+                >
+                  <MapPin className="h-4 w-4" /> Buka di Google Maps
+                </a>
+              </CardContent>
+            </Card>
 
             {/* Transport Platforms */}
             <Card className="bg-card border-border/50">
