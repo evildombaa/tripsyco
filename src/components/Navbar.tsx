@@ -65,7 +65,7 @@ const Navbar = () => {
           ) : (
             <>
               <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="text-muted-foreground">Masuk</Button>
-              <Button size="sm" onClick={() => navigate("/auth")} className="gradient-primary border-0 shadow-md hover:shadow-lg transition-shadow">Daftar</Button>
+              <Button size="sm" onClick={() => navigate("/auth?mode=signup")} className="gradient-primary border-0 shadow-md hover:shadow-lg transition-shadow">Daftar</Button>
             </>
           )}
         </div>
@@ -97,7 +97,7 @@ const Navbar = () => {
             ) : (
               <>
                 <Button variant="ghost" size="sm" className="flex-1" onClick={() => { navigate("/auth"); setIsOpen(false); }}>Masuk</Button>
-                <Button size="sm" className="flex-1 gradient-primary border-0" onClick={() => { navigate("/auth"); setIsOpen(false); }}>Daftar</Button>
+                <Button size="sm" className="flex-1 gradient-primary border-0" onClick={() => { navigate("/auth?mode=signup"); setIsOpen(false); }}>Daftar</Button>
               </>
             )}
           </div>
