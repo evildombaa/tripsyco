@@ -45,31 +45,30 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
 
     if (isDouble) {
       clearPendingCancel();
-      // Double-click: set range start, or set range end if start already chosen
-      if (!range?.from || (range.from && range.to)) {
-        // Start a new range
-        onRangeChange({ from: date, to: undefined });
-        onSelectDate(date);
-      } else {
-        // Complete the range — order start/end correctly
-        const from = range.from;
-        if (date.getTime() < from.getTime()) {
-          onRangeChange({ from: date, to: from });
-        } else {
-          onRangeChange({ from, to: date });
-        }
-        onSelectDate(date);
-      }
+      // Double-click: start a new range (awaiting end date)
+      onRangeChange({ from: date, to: undefined });
+      onSelectDate(date);
     } else {
-      // Single click: wait briefly so the first click of a valid double-click end date is not canceled
-      if (range?.from && !range.to) {
-        clearPendingCancel();
+      clearPendingCancel();
+      // If a range start is pending (double-clicked start, no end yet),
+      // delay slightly so a follow-up click that becomes a double-click on the
+      // end date is not treated as a single-click that resets the range.
+      if (range?.from && !range.to && date.toDateString() !== range.from.toDateString()) {
         pendingCancelRef.current = setTimeout(() => {
-          onRangeChange(undefined);
+          const from = range.from!;
+          if (date.getTime() < from.getTime()) {
+            onRangeChange({ from: date, to: from });
+          } else {
+            onRangeChange({ from, to: date });
+          }
+          onSelectDate(date);
           pendingCancelRef.current = null;
         }, DOUBLE_CLICK_DELAY);
+      } else {
+        // Single click on a date: select it as a single-day range immediately
+        onRangeChange({ from: date, to: date });
+        onSelectDate(date);
       }
-      onSelectDate(date);
     }
   };
 
@@ -104,7 +103,7 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
       />
       <div className="flex flex-col items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
         <span className="text-center">
-          Klik sekali untuk melihat tanggal. <span className="font-medium text-foreground">Double klik</span> tanggal awal lalu <span className="font-medium text-foreground">double klik</span> tanggal akhir untuk memilih rentang.
+          <span className="font-medium text-foreground">Klik sekali</span> untuk memilih satu tanggal. <span className="font-medium text-foreground">Double klik</span> tanggal awal lalu klik tanggal akhir untuk memilih rentang.
         </span>
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-primary inline-block" /> Sudah ada itinerary
