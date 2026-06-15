@@ -197,7 +197,7 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
           </Button>
         </div>
       )}
-      {onGenerate && (
+      {onGenerate && !(range?.from && range?.to && range.from.toDateString() !== range.to.toDateString()) && (
         <div className="mb-6">
           <Button
             onClick={onGenerate}
