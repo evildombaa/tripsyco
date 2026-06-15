@@ -184,8 +184,8 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
         </div>
       )}
 
-      {/* Generate button — visible when range with 2+ days is selected */}
-      {onGenerate && range?.from && range?.to && (
+      {/* Generate button — always visible when onGenerate is provided */}
+      {onGenerate && range?.from && range?.to && range.from.toDateString() !== range.to.toDateString() && (
         <div className="mb-6">
           <Button
             onClick={onGenerate}
@@ -197,7 +197,7 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
           </Button>
         </div>
       )}
-      {onGenerate && range?.from && !range?.to && (
+      {onGenerate && !(range?.from && range?.to && range.from.toDateString() !== range.to.toDateString()) && (
         <div className="mb-6">
           <Button
             onClick={onGenerate}

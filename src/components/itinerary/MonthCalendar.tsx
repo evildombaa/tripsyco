@@ -45,29 +45,42 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
 
     if (isDouble) {
       clearPendingCancel();
-      // Double-click: start a new range (awaiting end date)
-      onRangeChange({ from: date, to: undefined });
-      onSelectDate(date);
-    } else {
-      clearPendingCancel();
-      // If a range start is pending (double-clicked start, no end yet),
-      // delay slightly so a follow-up click that becomes a double-click on the
-      // end date is not treated as a single-click that resets the range.
-      if (range?.from && !range.to && date.toDateString() !== range.from.toDateString()) {
-        pendingCancelRef.current = setTimeout(() => {
-          const from = range.from!;
+      // Double-click behavior
+      if (range?.from && !range.to) {
+        // Range start is pending
+        if (date.toDateString() === range.from.toDateString()) {
+          // Double-clicked on the same start date — re-lock as start
+          onRangeChange({ from: date, to: undefined });
+        } else {
+          // Double-clicked on a different date — complete the range
+          const from = range.from;
           if (date.getTime() < from.getTime()) {
             onRangeChange({ from: date, to: from });
           } else {
             onRangeChange({ from, to: date });
           }
-          onSelectDate(date);
+        }
+      } else {
+        // No pending range start — lock this date as range start
+        onRangeChange({ from: date, to: undefined });
+      }
+      onSelectDate(date);
+    } else {
+      clearPendingCancel();
+      // Always update selected date immediately so UI reflects the click
+      onSelectDate(date);
+
+      if (range?.from && !range.to && date.toDateString() !== range.from.toDateString()) {
+        // Range start is pending, clicked on a different date.
+        // Wait briefly to see if this becomes a double-click (to complete the range).
+        pendingCancelRef.current = setTimeout(() => {
+          // No double-click — cancel pending range and select this date as single day
+          onRangeChange({ from: date, to: date });
           pendingCancelRef.current = null;
         }, DOUBLE_CLICK_DELAY);
       } else {
-        // Single click on a date: select it as a single-day range immediately
+        // Single click: select this date as a single-day range
         onRangeChange({ from: date, to: date });
-        onSelectDate(date);
       }
     }
   };
@@ -103,7 +116,7 @@ const MonthCalendar = ({ selectedDate, onSelectDate, range, onRangeChange, dates
       />
       <div className="flex flex-col items-center justify-center gap-1 mt-2 text-xs text-muted-foreground">
         <span className="text-center">
-          <span className="font-medium text-foreground">Klik sekali</span> untuk memilih satu tanggal. <span className="font-medium text-foreground">Double klik</span> tanggal awal lalu klik tanggal akhir untuk memilih rentang.
+          <span className="font-medium text-foreground">Klik sekali</span> untuk memilih 1 hari. <span className="font-medium text-foreground">Double klik</span> tanggal awal lalu double klik tanggal akhir untuk memilih rentang.
         </span>
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-primary inline-block" /> Sudah ada itinerary
