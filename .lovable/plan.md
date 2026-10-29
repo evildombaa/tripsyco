@@ -1,104 +1,68 @@
+# Rencana: Beranda Feed + Unggah + Profil & Koleksi
 
-# Rencana: Itinerary Calendar + Game-style Questionnaire
+Navbar tetap: Beranda, Jelajahi, Itinerary, Unggah, Profil.
 
-## 1. Halaman Itinerary baru (`src/pages/Itinerary.tsx`)
+## 1. Beranda = Feed (route `/`, publik)
 
-Layout dari atas ke bawah:
+Halaman `src/pages/Feed.tsx` menggantikan Index. HeroSection, PopularDestinations, FeaturesSection dihapus dari beranda (komponen lama dihapus).
 
-```text
-┌────────────────────────────────────────┐
-│  Header: Nama trip + Simpan/Hapus      │
-│  Budget summary                         │
-├────────────────────────────────────────┤
-│  KALENDER BULANAN (range mode)         │
-│  - tanggal dengan itinerary = badge    │
-│  - klik tanggal → buka detail hari itu │
-│  - drag range → highlight              │
-├────────────────────────────────────────┤
-│  [ Generate Itinerary ] (muncul setelah│
-│   range dipilih)                        │
-├────────────────────────────────────────┤
-│  Detail hari terpilih (cards aktivitas)│
-│  - swipeable / klik card → detail      │
-└────────────────────────────────────────┘
-```
+- **Feed grid**: masonry 3 kolom mobile, 4–6 kolom desktop (CSS columns). Kartu hanya foto (rasio asli, width/height disimpan, lazy loading).
+- **Infinite scroll**: cursor `created_at + id`, 20 postingan per muat, via edge function `feed`. Saat semua habis, muatan ulang dimulai lagi dengan urutan acak berbeda (pass kedua berdasarkan seed, dilanjutkan pass ketiga, dst.) sehingga konten tampil ulang di bawah dengan susunan berbeda.
+- **Filter kategori**: chip horizontal di atas feed (kategori dari lokasi: Alam, Kuliner, Budaya, dst. — daftar kategori diambil dari kategori tempat yang ada).
+- **Pencarian**: 1 kolom pencarian (nama tempat/kota). Hasil dalam 2 bagian: Tempat (dari tabel `places` internal, yang pernah di-tag) dan Postingan (caption/deskripsi/nama lokasi). Digabung dengan filter kategori. Event `search` dicatat.
+- Klik kartu → buka **Detail postingan** (route `/p/:id`, bukan menu) — route terpisah agar link share bisa dibuka.
 
-- Hapus `DateStrip` (geser horizontal), ganti dengan komponen `MonthCalendar` baru yang membungkus shadcn `Calendar` mode `range`.
-- Tanggal yang sudah punya itinerary diberi `modifier` (titik/badge ungu) dan tetap ditampilkan setelah generate.
-- Saat user klik 1 tanggal yang sudah ada itinerary → langsung tampil cards hari itu.
-- Saat user pilih range → tombol "Generate Itinerary" aktif.
+## 2. Detail postingan (`/p/:id`)
 
-## 2. Konflik tanggal sebelum generate
+- Foto (carousel jika >1), caption, deskripsi, pengunggah (avatar + username, klik → profil), tag lokasi, tanggal posting, jumlah pelihat, jumlah bagikan, jumlah like.
+- Tag lokasi diklik → buka Google Maps (link `google.com/maps/search/?api=1&query=nama+lat,lng`) + event `open_maps`.
+- Tombol: **Like** (toggle, optimistic update, hanya login), **Simpan** (bottom sheet pilih/buat koleksi, login), **Bagikan** (Web Share API / copy link `…/p/:id?via=share`), **Laporkan** (harus login, simpan ke `post_reports`).
+- Jumlah pelihat = event `view_post`; jumlah bagikan = event `share` saat link `?via=share` dibuka (setiap buka link share tercatat).
 
-Sebelum memanggil edge function, cek `itinerary_days` yang sudah ada di rentang tersebut. Jika ada:
-- Tampilkan dialog: "Tanggal X, Y sudah memiliki itinerary. Mau diganti atau dilewati?"
-- Pilihan: **Ganti** (hapus lalu generate ulang) / **Lewati** (skip tanggal tsb saat generate).
+## 3. Unggah (route `/upload`, login)
 
-## 3. Kuesioner game-style (`ItineraryQuestionnaireGame.tsx` baru)
+`src/pages/Upload.tsx`:
 
-Modal/overlay setelah klik "Generate Itinerary". Setiap pertanyaan = 1 hover-box di bawah layar, dengan karakter Pixar-style di atasnya (separuh badan/kaki ketutup box). Saat ganti step, karakter slide keluar ke kanan + karakter baru slide masuk.
+- Pilih 1–5 foto + preview, caption, deskripsi.
+- **Tag lokasi wajib** dari search box → hasil live Google Places (Places API New, via edge function `places-search`, kunci di server, tampil 5 + scroll untuk muatan berikutnya, debounce 300ms + cache). User harus memilih dari hasil — tidak bisa mengetik bebas.
+- Jika tidak cocok → tombol **"Ajukan tempat baru"**: form (nama, kategori, kota, provinsi, koordinat manual atau tombol "pakai lokasi saat ini" via GPS). Sebelum menyimpan, sistem cek tabel `places`: nama mirip atau koordinat < 200 m ditampilkan sebagai saran agar tidak duplikat. Tempat baru berstatus **pending**, postingan tetap tayang.
+- **Kompres di klien** (canvas): full maks 1600px, medium 900px, thumb 400px → upload 3 file ke bucket Storage `posts` (publik). Width/height asli disimpan agar layout tidak melompat.
+- Simpan sebagai **Draft** (masuk koleksi dengan tag "Draft") atau **Posting sekarang** (masuk koleksi tanpa tag). Draft bisa diposting kemudian tanpa kehilangan data.
+- Pengguna lama tanpa username → dialog wajib isi username sebelum bisa unggah.
 
-Urutan step + karakter (sesuai urutan attachment):
+## 4. Profil & Koleksi
 
-| Step | Karakter | Pertanyaan |
-|---|---|---|
-| 1 (box A) | `Girly_4.png` | (1) Tujuan wisata + (1b) Durasi jam aktif harian |
-| 2 | `Girly_5.png` | (3) Tujuan utama perjalanan (multi-select + lainnya) |
-| 3 | `Girly_6.png` | (4) Dengan siapa bepergian (single + lainnya) |
-| 4 | `Girly_7.png` | (5) Gaya perjalanan (single + lainnya) |
-| 5 | `Girly_8.png` | (6) Budget (tier) |
+- **Signup wajib username** (field baru di halaman Auth, dicek unik).
+- `src/pages/Profile.tsx` (`/u/:username`): halaman publik tanpa login — avatar, nama, username, jumlah postingan, grid postingan. Pemilik profil bisa: ganti foto profil (bucket `avatars`), edit data profil, dan melihat **"Koleksi saya"** (daftar koleksi buatan + semua postingannya sendiri; draft berlabel "Draft", posting tanpa label; koleksi bisa berisi draft & posting).
+- Halaman detail koleksi `/koleksi/:id`: grid postingan.
+- Postingan bisa masuk lebih dari satu koleksi; postingan sendiri bisa dihapus (soft delete `deleted_at`).
 
-Detail:
-- 1b: pilihan jam preset (`06.30-22.00`, `08.00-21.00`, `10.00-23.00`) + "Lainnya" → 2 time-picker dropdown (start/end), bukan ketik bebas.
-- Pertanyaan multi-select (#3) pakai checkbox list.
-- Setelah step terakhir → langsung trigger generate.
+## 5. Event (background)
 
-Asset karakter dicopy ke `src/assets/characters/`.
+Tabel `events`: insert saja dari klien (user_id boleh null). Tipe: `view_post`, `like`, `save`, `share`, `open_maps`, `search`. Tanpa dashboard.
 
-## 4. Edge function `generate-itinerary`
+## 6. Database (migrasi)
 
-- Hapus pemanggilan Google Maps Places & Photos.
-- Input baru: `destination, daily_hours_start, daily_hours_end, travel_purpose[], travel_companion, travel_style, budget_tier, dates[]` (array tanggal yang perlu di-generate, hasil filter konflik).
-- Prompt OpenAI minta JSON: untuk setiap tanggal → list aktivitas mulai dari `daily_hours_start` sampai `daily_hours_end`, dengan `location` (nama tempat untuk dicari di Wikipedia), `activity`, `description`, `estimated_cost`, `status`.
-- Untuk setiap item, panggil Wikipedia/Wikimedia Commons API (`action=query&prop=pageimages` → `original`/`thumbnail`) untuk ambil `image_url`. Reuse helper dari `place-details` / `explore-places` bila ada.
+- `profiles`: + `username` (unik), `avatar_url` sudah ada.
+- `places`: id, google_place_id, name, category, city, province, lat, lng, status (`approved`/`pending`), created_by.
+- `posts`: id, user_id, caption, description, place_id, status (`draft`/`published`), photos (jsonb: array {thumb, medium, full, width, height}), deleted_at.
+- `post_likes` (unik user+post), `collections` (user_id, name), `collection_posts` (unik koleksi+post), `post_reports` (post_id, reporter_id, reason), `events` (user_id nullable, event_type, post_id, place_id).
+- RLS: postingan `published` & tidak terhapus boleh dibaca siapa pun; draft hanya pemilik; like/simpan/unggah/lapor butuh login; events bisa di-insert siapa pun (anon juga), tidak bisa dibaca user.
+- Semua tabel baru dengan GRANT sesuai kebijakan; bucket `posts` & `avatars` publik.
 
-## 5. Database
+## 7. Backend (edge functions, kunci tetap di server)
 
-Tambah kolom di `itinerary_preferences`:
-- `daily_hours_start text`, `daily_hours_end text`
-- `travel_purposes text[]` (multi-select); kolom `travel_purpose` lama tetap untuk backward compat (isi joined string)
-- `budget_tier text` (label budget yang dipilih)
+- `feed`: daftar postingan (cursor + reshuffle pass), filter kategori, pencarian (tempat internal + postingan), hitungan like/pelihat/bagikan per postingan. Validasi input.
+- `places-search`: pencarian lokasi Google Places API (New) — butuh sesi login, debounce di klien, hasil dibatasi, cache agar pemakaian Google hemat.
+- Fungsi lama (explore-places, place-details, dll.) tidak diubah.
 
-Simpan jawaban kuesioner setiap kali generate (upsert per `itinerary_id`).
+## 8. File
 
-## 6. Penyimpanan & Tampilan
+Baru: `src/pages/Feed.tsx`, `src/pages/PostDetail.tsx`, `src/pages/Upload.tsx`, `src/pages/Profile.tsx`, `src/pages/CollectionDetail.tsx`, komponen `PostCard`, `CategoryChips`, `SaveToCollectionSheet`, `PlaceSearchField`, `NewPlaceForm`, `PhotoUploader` (kompres), `UsernameGateDialog`, util kompresi gambar.
+Ubah: `App.tsx` (rute baru), `Navbar.tsx` (menu Unggah & Profil), `Auth.tsx` (field username), `Index.tsx` → diganti Feed (Hero/Popular/Features dihapus), `supabase/functions/*` baru.
+Tidak diubah: Jelajahi, Itinerary, chatbot, feedback.
 
-- Hasil generate dimasukkan ke `itinerary_days` + `itinerary_day_items` seperti sekarang, dengan `trip_date` sesuai tanggal.
-- Tanggal yang sudah ada (jika user pilih "lewati") tidak disentuh.
-- Kalender re-fetch → titik penanda muncul.
-- Klik tanggal → tampil cards; setiap card klik buka `ActivityDetailDialog` dengan gambar Wikipedia.
+## Catatan
 
-## 7. File yang berubah
-
-Baru:
-- `src/components/itinerary/MonthCalendar.tsx`
-- `src/components/itinerary/QuestionnaireGame.tsx`
-- `src/components/itinerary/ConflictDialog.tsx`
-- `src/assets/characters/char-1..5.png` (copy dari uploads)
-
-Edit:
-- `src/pages/Itinerary.tsx` — alur baru
-- `src/components/ItineraryEditor.tsx` — ganti `DateStrip` → `MonthCalendar`, tambah tombol generate
-- `supabase/functions/generate-itinerary/index.ts` — hapus Google, pakai Wikipedia + OpenAI, terima `dates[]`
-- Migration: tambah kolom preferences
-
-Tidak diubah:
-- `ItineraryChatbot`, `ActivityCard`, `ActivityDetailDialog`, fitur feedback.
-
-## Catatan teknis
-
-- Wikipedia API: `https://id.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&piprop=original&titles=<location>&origin=*` (no key). Fallback ke `en.wikipedia.org` jika kosong.
-- Range calendar: `Calendar mode="range"` dari shadcn.
-- Karakter slide animation: framer-motion sudah ada di project (cek), kalau tidak pakai CSS transition `translate-x`.
-
-Konfirmasi sebelum saya implement.
+- Pencarian Google Places dipakai hanya saat unggah; tiap ketikan adalah pemanggilan berbayar Google Maps — sudah dimitigasi (login, debounce, cache, batas hasil).
+- Foto di storage publik memakai URL langsung (tanpa signed URL).
