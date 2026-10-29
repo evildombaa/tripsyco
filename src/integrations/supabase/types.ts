@@ -516,6 +516,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      post_stats: {
+        Args: { _ids: string[] }
+        Returns: {
+          like_count: number
+          post_id: string
+          share_count: number
+          view_count: number
+        }[]
+      }
       user_owns_day: { Args: { _day_id: string }; Returns: boolean }
       user_owns_itinerary: { Args: { _itinerary_id: string }; Returns: boolean }
     }
