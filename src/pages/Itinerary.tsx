@@ -26,7 +26,7 @@ const Itinerary = () => {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [itineraryId, setItineraryId] = useState<string | null>(null);
-  const [range, setRange] = useState<DateRange | undefined>({ from: new Date(), to: new Date() });
+  const [range, setRange] = useState<DateRange | undefined>();
   const [showQuestionnaire, setShowQuestionnaire] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [conflictDates, setConflictDates] = useState<string[]>([]);
