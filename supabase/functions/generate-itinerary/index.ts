@@ -34,12 +34,51 @@ async function fetchWikipediaImage(title: string): Promise<string | null> {
   return null;
 }
 
+// Strict JSON schema for the itinerary response (Lovable AI Gateway /v1/responses)
+const itinerarySchema = {
+  type: "object",
+  properties: {
+    trip_name: { type: "string" },
+    days: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          date: { type: "string", description: "YYYY-MM-DD" },
+          notes: { type: ["string", "null"] },
+          items: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                time: { type: "string" },
+                activity: { type: "string" },
+                location: { type: "string" },
+                status: { type: "string", enum: ["must", "want", "maybe"] },
+                description: { type: "string" },
+                estimated_cost: { type: "number" },
+              },
+              required: ["time", "activity", "location", "status", "description", "estimated_cost"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["date", "notes", "items"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["trip_name", "days"],
+  additionalProperties: false,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-    if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
+    // Lovable AI Gateway — no external OpenAI API key needed
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
     const { preferences, feedback, dates: requestedDates } = await req.json();
     const {
@@ -90,51 +129,49 @@ PENTING:
 4. Berikan estimasi biaya dalam Rupiah (number).
 5. Pertimbangkan hari besar nasional Indonesia / event lokal pada tanggal tersebut dan sebutkan di description jika relevan.
 6. Pertimbangkan jarak dan waktu tempuh antar tempat.
-${feedbackContext}
+${feedbackContext}`;
 
-Berikan response dalam format JSON SAJA (tanpa markdown, tanpa backtick) dengan struktur:
-{
-  "trip_name": "Nama perjalanan yang menarik",
-  "days": [
-    {
-      "date": "YYYY-MM-DD",
-      "notes": "Catatan khusus hari ini atau null",
-      "items": [
-        {
-          "time": "08:00",
-          "activity": "Judul aktivitas singkat",
-          "location": "Nama tempat resmi (untuk dicari di Wikipedia)",
-          "status": "must",
-          "description": "Deskripsi 1-2 kalimat.",
-          "estimated_cost": 50000
-        }
-      ]
-    }
-  ]
-}`;
-
-    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    const gatewayRes = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        response_format: { type: "json_object" },
+        model: "openai/gpt-6-astra",
+        input: [{ role: "user", content: prompt }],
+        text: {
+          format: {
+            type: "json_schema",
+            name: "itinerary",
+            strict: true,
+            schema: itinerarySchema,
+          },
+        },
+        reasoning: { effort: "low" },
       }),
     });
 
-    if (!openaiRes.ok) {
-      const errText = await openaiRes.text();
-      console.error("OpenAI error:", openaiRes.status, errText);
-      throw new Error(`OpenAI API error: ${openaiRes.status}`);
+    if (!gatewayRes.ok) {
+      const errText = await gatewayRes.text();
+      console.error("AI Gateway error:", gatewayRes.status, errText);
+      throw new Error(`AI Gateway error: ${gatewayRes.status}`);
     }
 
-    const openaiData = await openaiRes.json();
-    const content = openaiData.choices?.[0]?.message?.content || "";
+    const gatewayData = await gatewayRes.json();
+
+    // Extract text from Responses API output
+    let content = typeof gatewayData.output_text === "string" ? gatewayData.output_text : "";
+    if (!content && Array.isArray(gatewayData.output)) {
+      for (const item of gatewayData.output) {
+        if (item?.type === "message" && Array.isArray(item.content)) {
+          for (const part of item.content) {
+            if (typeof part?.text === "string") content += part.text;
+          }
+        }
+      }
+    }
+    if (!content) throw new Error("Empty response from AI Gateway");
 
     let itinerary;
     try {
