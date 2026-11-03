@@ -184,8 +184,8 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
         </div>
       )}
 
-      {/* Generate button — visible when range with 2+ days is selected */}
-      {onGenerate && range?.from && range?.to && (
+      {/* Generate button — always visible and clickable */}
+      {onGenerate && (
         <div className="mb-6">
           <Button
             onClick={onGenerate}
@@ -193,20 +193,11 @@ const ItineraryEditor = ({ tripName, setTripName, days, setDays, budget, setBudg
             className="w-full gradient-primary border-0 shadow-md h-12 text-base font-semibold"
           >
             <Sparkles className="h-5 w-5 mr-2" />
-            {generating ? "Membuat itinerary..." : "Generate Itinerary untuk rentang ini"}
-          </Button>
-        </div>
-      )}
-      {onGenerate && range?.from && !range?.to && (
-        <div className="mb-6">
-          <Button
-            onClick={onGenerate}
-            disabled={generating}
-            variant="outline"
-            className="w-full h-12 text-base font-semibold"
-          >
-            <Sparkles className="h-5 w-5 mr-2" />
-            {generating ? "Membuat itinerary..." : "Generate untuk 1 hari ini"}
+            {generating
+              ? "Membuat itinerary..."
+              : range?.from && range?.to && range.from.toDateString() !== range.to.toDateString()
+                ? "Generate Itinerary untuk rentang ini"
+                : "Generate untuk 1 hari ini"}
           </Button>
         </div>
       )}

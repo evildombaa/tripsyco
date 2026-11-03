@@ -220,18 +220,14 @@ const Itinerary = () => {
     }
   };
 
-  // Compute the list of dates in current range
+  // Compute the list of dates in current range (defaults to the selected day)
   const rangeDates = useMemo<string[]>(() => {
-    if (!range?.from) return [];
+    if (!range?.from) return [format(selectedDate, "yyyy-MM-dd")];
     const to = range.to || range.from;
     return eachDayOfInterval({ start: range.from, end: to }).map((d) => format(d, "yyyy-MM-dd"));
-  }, [range]);
+  }, [range, selectedDate]);
 
   const handleStartGenerate = () => {
-    if (!range?.from) {
-      toast({ title: "Pilih rentang tanggal terlebih dahulu", variant: "destructive" });
-      return;
-    }
     setShowQuestionnaire(true);
   };
 
